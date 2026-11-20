@@ -150,6 +150,22 @@ form .buy{align-self:flex-start}
 #gate details{margin-top:6px;color:var(--muted)} #gate summary{cursor:pointer;font-size:14px;padding:4px 0}
 #gate form{margin-top:6px}
 
+.rank h3{display:flex;align-items:center;gap:8px}
+.rank .pos{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:50%;background:#111812;color:var(--gold);font-size:14px}
+.rank.mine{box-shadow:inset 0 0 0 2px var(--gold)}
+.erabar{display:block;height:5px;border-radius:3px;background:#111812;overflow:hidden}
+.erabar i{display:block;height:100%;background:var(--gold)}
+.viewbar{position:absolute;left:8px;right:8px;top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(24,33,27,.9);border-radius:8px;padding:6px 6px 6px 12px;font-weight:800;font-size:15px;z-index:3}
+.viewbar .buy{padding:7px 10px;min-width:0}
+
+.rschip{position:absolute;right:8px;top:8px;max-width:58%;background:rgba(24,33,27,.86);border-radius:999px;padding:4px 11px;font-size:13px;font-weight:700;color:#bfe3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.tech.done{opacity:.7}.row.tech.locked{opacity:.55}
+.row.busy{box-shadow:inset 0 0 0 2px #7fb8e6}
+.row .cost{font-size:14px;color:var(--muted);margin:0}
+.atk{font-size:13px}
+.replaybar{position:absolute;left:8px;right:8px;top:8px;background:rgba(90,26,18,.92);color:#fff3e4;border-radius:8px;padding:8px 12px;font-weight:800;font-size:15px;z-index:3;text-align:center}
+#pushTopic{font-family:var(--body);font-size:19px;letter-spacing:0;color:var(--gold);margin:0;word-break:break-all}
+
 </style>
 </head>
 <body>
@@ -168,6 +184,9 @@ form .buy{align-self:flex-start}
   <main id="field">
     <canvas id="map" role="img" aria-label="Je dorp. Tik op het land om te verzamelen, tik op het hoofdgebouw voor het volgende tijdperk."></canvas>
     <div class="chips" id="chips" role="group" aria-label="Kies wat je verzamelt"></div>
+    <div class="viewbar" id="viewBar" hidden><span id="viewText"></span><button class="buy" data-act="unview" data-arg="">Terug naar mijn dorp</button></div>
+    <div class="rschip num" id="rsChip" hidden></div>
+    <div class="replaybar" id="replayBar" hidden></div>
     <button class="tapbtn" id="tapBtn"><strong id="tapN"></strong><span id="tapL"></span></button>
     <div id="toast" role="status" hidden></div>
   </main>
@@ -177,8 +196,12 @@ form .buy{align-self:flex-start}
     <div id="sheetBody">
       <div class="list" id="list"></div>
       <div id="v-alfa" class="view" hidden>
+        <h3 class="sub">Ranglijst</h3>
+        <div class="list" id="rankList"></div>
         <p class="hint" id="alfaState">Verbinden met de alfa…</p>
         <div class="row"><h3>Jouw herstelcode</h3><p>Hiermee speel je verder op een ander apparaat. Houd hem geheim: wie hem heeft, speelt als jou.</p><p class="num small" id="myCode">–</p><div class="act"><button class="buy" data-act="copyMy" data-arg="">Kopieer herstelcode</button></div></div>
+        <h3 class="sub">Meldingen op je telefoon</h3>
+        <div class="row"><p>Krijg een melding als iemand je dorp aanvalt of als je bent toegelaten. Installeer de gratis app ntfy (App Store of Google Play), tik op + en vul dit onderwerp in:</p><p class="code num" id="pushTopic">…</p><a class="link" id="pushLink" href="https://ntfy.sh/" target="_blank" rel="noopener">Of open je meldingen in de browser</a></div>
         <h3 class="sub">Ideeënbus</h3>
         <p class="hint">Stuur een idee voor het spel in. Alle spelers en de spelleider kunnen het lezen.</p>
         <form id="ideaForm">
@@ -224,7 +247,7 @@ form .buy{align-self:flex-start}
     <button role="tab" data-act="tab" data-arg="d">Verdedig</button>
     <button role="tab" data-act="tab" data-arg="u">Verbeter</button>
     <button role="tab" data-act="tab" data-arg="s">Winkel</button>
-    <button role="tab" data-act="tab" data-arg="a">Alfa</button>
+    <button role="tab" data-act="tab" data-arg="a">Spelers</button>
   </nav>
   <div id="gate" hidden><div>
     <h2>Van Vuursteen tot Vorst</h2>
@@ -320,9 +343,9 @@ const SLOTKEY = {}; SLOTS.forEach(t => SLOTKEY['t'+t.idx]=1);
 
 function newState(now){ const res={}; for(const k of RES) res[k]=0;
   return {v:V,res,b:{},lv:{},map:{},era:0,tool:0,gems:0,gp:0,gc:0,auto:0,go:0,gb:0,gs:0,gk:0,wall:0,gate:0,guards:0,towers:0,rn:0,raid:null,
-    boostUntil:0,feastUntil:0,partyUntil:0,peaceUntil:0,mercUntil:0,raidAt:0,lastRaid:null,wins:0,flag:0,flags:[0],claimed:[],sel:'food',last:now}; }
+    boostUntil:0,feastUntil:0,partyUntil:0,peaceUntil:0,mercUntil:0,raidAt:0,lastRaid:null,wins:0,flag:0,flags:[0],claimed:[],sel:'food',tech:{},rs:null,pr:0,last:now}; }
 function hydrate(saved,now){ const s=Object.assign(newState(now),saved); s.res=Object.assign(newState(now).res,saved.res||{});
-  for(const k of ['b','lv','map']) s[k]=Object.assign({},saved[k]||{}); s.flags=(saved.flags||[0]).slice(); s.claimed=(saved.claimed||[]).slice(-300);
+  for(const k of ['b','lv','map','tech']) s[k]=Object.assign({},saved[k]||{}); s.rs=saved.rs?Object.assign({},saved.rs):null; s.flags=(saved.flags||[0]).slice(); s.claimed=(saved.claimed||[]).slice(-300);
   s.lastRaid=saved.lastRaid?JSON.parse(JSON.stringify(saved.lastRaid)):null; s.raid=saved.raid?JSON.parse(JSON.stringify(saved.raid)):null; if(!ERAS[s.era]) s.era=0; if(RES_ERA[s.sel]===undefined) s.sel='food'; return s; }
 function count(s,id){ return s.b[id]||0; }
 function lvl(s,id){ return s.b[id] ? (s.lv[id]||1) : 0; }
@@ -330,16 +353,16 @@ const MILES = [10,25,50,75,100,150,200,300];
 function mile(n){ let k=0; for(const m of MILES) if(n>=m) k++; return Math.pow(1.5,k); }
 function toMile(n){ for(const m of MILES) if(n<m) return m-n; return 0; }
 function eraMult(s){ return Math.pow(EM,s.era); }
-function mult(s,now){ return eraMult(s)*(1+.25*s.gp)*(now<s.boostUntil?2:1)*(now<s.feastUntil?1.5:1)*(now<s.partyUntil?3:1); }
+function mult(s,now){ return eraMult(s)*prMult(s)*(1+.25*s.gp)*(now<s.boostUntil?2:1)*(now<s.feastUntil?1.5:1)*(now<s.partyUntil?3:1); }
 function gross(s,now){ const r={}; for(const k of RES) r[k]=0; const m=mult(s,now), sm=m*(1+.5*s.gs);
   for(const d of BUILD){ const n=s.b[d.id]||0; if(!n) continue; const L=s.lv[d.id]||1;
     const mi=mile(n);
-    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi;
+    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*(1+tb(s,k));
     for(const sd of d.side) if(L>=sd.l && (!sd.e || s.era>=sd.e)) r[sd.r]+=sd.q*n*LVL[L-sd.l]*sm*mi; }
   return r; }
 function buildings(s){ let n=0; for(const k in s.b) n+=s.b[k]; return n; }
 // Upkeep: the share of each resource the town itself uses up.
-function upkeep(s){ const nb=buildings(s), f=1-.1*(s.gk||0), u={};
+function upkeep(s){ const nb=buildings(s), f=(1-.1*(s.gk||0))*(1-tb(s,'upkeep')), u={};
   u.food=Math.min(.3,.03+.0002*nb+.002*s.guards)*f;
   if(s.era<7) u.wood=Math.min(.15,.0002*nb)*f;
   if(s.wall) u.stone=Math.min(.15,.012*s.wall+.008*s.gate+.004*s.towers)*f;
@@ -349,14 +372,14 @@ function upkeep(s){ const nb=buildings(s), f=1-.1*(s.gk||0), u={};
   return u; }
 function rates(s,now){ const r=gross(s,now), u=upkeep(s); for(const k in u) r[k]*=1-u[k]; return r; }
 function scaled(cost,f){ const c={}; for(const k in cost) c[k]=Math.ceil(cost[k]*f); return c; }
-function disc(s){ return 1-.08*s.gb; }
+function disc(s){ return (1-.08*s.gb)*(1-tb(s,'build')); }
 function buildCost(s,d){ return scaled(d.cost, Math.pow(d.g||GROWTH, s.b[d.id]||0)*disc(s)); }
 function bulkCost(s,d,k){ const g=d.g||GROWTH, n=s.b[d.id]||0; let f=0; for(let q=0;q<k;q++) f+=Math.pow(g,n+q); return scaled(d.cost,f*disc(s)); }
 function buyBulk(s,d,k){ if(d.era>s.era || !pay(s,bulkCost(s,d,k))) return false; s.b[d.id]=(s.b[d.id]||0)+k; if(!s.lv[d.id]) s.lv[d.id]=1; syncMap(s); return true; }
 function lvlCap(s,d){ return Math.max(1,Math.min(MAXLVL, 2+s.era-d.era)); }
 function upCost(s,d){ return scaled(d.up, Math.pow(7,(s.lv[d.id]||1)-1)*disc(s)); }
 function toolCost(s){ const v=60*Math.pow(6,s.tool); return {food:v,wood:v}; }
-function clickPower(s){ return Math.pow(2,s.tool+s.gc)*eraMult(s); }
+function clickPower(s){ return Math.pow(2,s.tool+s.gc)*eraMult(s)*prMult(s)*(1+tb(s,'click')); }
 function can(s,c){ for(const k in c) if(s.res[k] < c[k]) return false; return true; }
 function pay(s,c){ if(!can(s,c)) return false; for(const k in c) s.res[k]-=c[k]; return true; }
 function produce(s,sec,now){ const r=rates(s,now); for(const k of RES) s.res[k]+=r[k]*sec; return r; }
@@ -380,7 +403,9 @@ function towerCost(s){ return scaled(s.era>=7 ? {stone:1500,steel:40} : {stone:1
 function buyTower(s){ if(s.towers>=towerCap(s) || !pay(s,towerCost(s))) return false; s.towers++; return true; }
 function defMult(s){ return Math.pow(1.3,Math.max(0,s.era-2)); }
 function guardPower(s){ return 3*(1+.25*Math.max(0,lvl(s,'barracks')-1)); }
-function defence(s,now){ const d=(s.wall*20+s.gate*15+s.towers*TOWER_DEF+s.guards*guardPower(s))*defMult(s); return Math.round(d*(now<s.mercUntil?2:1)); }
+function defence(s,now){ const d=(s.wall*20+s.gate*15+s.towers*TOWER_DEF+s.guards*guardPower(s))*defMult(s)*(1+tb(s,'def')); return Math.round(d*(now<s.mercUntil?2:1)); }
+// attack strength against other players: only guards march out
+function attackPower(s,now){ return Math.round(s.guards*guardPower(s)*defMult(s)*(1+tb(s,'atk'))*(now<s.mercUntil?2:1)); }
 function raidStr(s){ return Math.round(RAID[s.era]*(1+.1*Math.min(s.rn||0,12))); }
 function callRaid(s,now){ if(s.era<2 || s.raid || now<s.peaceUntil || (s.lastRaid && now-s.lastRaid.at<120000)) return false; s.raidAt=now+8000; return true; }
 function raidTick(s,now,rand){ if(s.era<2) return null;
@@ -432,6 +457,54 @@ function fmt(n){
   return (n<10?n.toFixed(2):n<100?n.toFixed(1):String(Math.floor(n))).replace('.',',')+u[i];
 }
 function fmtRate(n){ return n>0 && n<10 ? n.toFixed(n<1?2:1).replace('.',',') : fmt(n); }
+
+// ---- research: one study at a time, it takes real time; the effects add up
+const TECH = [
+  {id:'flint',  era:0, name:'Vuursteen slijpen',  eff:{click:.5},            desc:'+50% per tik'},
+  {id:'hunt',   era:0, name:'Jachttechniek',      eff:{food:.15},            desc:'+15% voedsel'},
+  {id:'farm',   era:1, name:'Akkerbouw',          eff:{food:.2},             desc:'+20% voedsel'},
+  {id:'bronze', era:1, name:'Brons gieten',       eff:{stone:.2,wood:.1},    desc:'+20% steen, +10% hout'},
+  {id:'wheel',  era:1, name:'Het wiel',           eff:{build:.05},           desc:'Bouwen 5% goedkoper'},
+  {id:'forge',  era:2, name:'IJzer smeden',       eff:{def:.15,atk:.15},     desc:'+15% verdediging en aanval'},
+  {id:'coin',   era:2, name:'Muntgeld',           eff:{gold:.2},             desc:'+20% goud'},
+  {id:'store',  era:2, name:'Voorraadschuren',    eff:{upkeep:.1},           desc:'10% minder onderhoud'},
+  {id:'math',   era:3, name:'Wiskunde',           eff:{all:.1},              desc:'+10% op alles'},
+  {id:'aqua',   era:3, name:'Aquaducten',         eff:{upkeep:.1,food:.1},   desc:'10% minder onderhoud, +10% voedsel'},
+  {id:'phalanx',era:3, name:'Falanx',             eff:{def:.2,atk:.1},       desc:'+20% verdediging, +10% aanval'},
+  {id:'guilds', era:4, name:'Gilden',             eff:{build:.08},           desc:'Bouwen 8% goedkoper'},
+  {id:'xbow',   era:4, name:'Kruisboog',          eff:{atk:.25,def:.1},      desc:'+25% aanval, +10% verdediging'},
+  {id:'rot',    era:4, name:'Drieslagstelsel',    eff:{food:.25},            desc:'+25% voedsel'},
+  {id:'press',  era:5, name:'Boekdrukkunst',      eff:{all:.1},              desc:'+10% op alles'},
+  {id:'powder', era:5, name:'Buskruit',           eff:{def:.25,atk:.25},     desc:'+25% verdediging en aanval'},
+  {id:'banks',  era:5, name:'Bankwezen',          eff:{gold:.3},             desc:'+30% goud'},
+  {id:'sail',   era:6, name:'Zeevaart',           eff:{loot:.5,wood:.15},    desc:'+50% buit, +15% hout'},
+  {id:'sci',    era:6, name:'Wetenschap',         eff:{all:.15},             desc:'+15% op alles'},
+  {id:'steam',  era:7, name:'Stoommachine',       eff:{wood:.3,stone:.3},    desc:'+30% hout en steen'},
+  {id:'rail',   era:7, name:'Spoorwegen',         eff:{build:.1,upkeep:.05}, desc:'Bouwen 10% goedkoper, 5% minder onderhoud'},
+  {id:'power',  era:8, name:'Elektriciteit',      eff:{all:.2},              desc:'+20% op alles'},
+  {id:'radar',  era:8, name:'Radar',              eff:{def:.4},              desc:'+40% verdediging'},
+  {id:'fusion', era:9, name:'Kernfusie',          eff:{all:.3},              desc:'+30% op alles'},
+  {id:'robot',  era:9, name:'Robotica',           eff:{click:1,atk:.4},      desc:'+100% per tik, +40% aanval'},
+];
+const TECHBY = {}; TECH.forEach(t => TECHBY[t.id]=t);
+function tb(s,k){ let v=0; const t=s&&s.tech; if(!t) return 0; for(const id in t){ const d=TECHBY[id]; if(d && d.eff[k]) v+=d.eff[k]; if(d && d.eff.all && k in RESKEY) v+=d.eff.all; } return Math.min(v, k==='upkeep'||k==='build'?.6:99); }
+const RESKEY = {food:1,wood:1,stone:1,gold:1,apples:1,meat:1,hides:1,planks:1,iron:1,coal:1,steel:1,oil:1,power:1};
+function techCost(t){ const e=ERAS[t.era+1]||ERAS[t.era], f=(ERAS[t.era+1]?.06:.12)*(1+.25*TECH.filter(x=>x.era===t.era).indexOf(t)), c={};
+  for(const k of MAIN) if(e.cost[k]) c[k]=Math.ceil(e.cost[k]*f); if(!Object.keys(c).length) c.food=200; return c; }
+function techTime(t){ return Math.round(90*Math.pow(1.55,t.era)*(1+.3*TECH.filter(x=>x.era===t.era).indexOf(t))); }
+function techState(s,t){ return s.tech[t.id] ? 'done' : s.rs && s.rs.id===t.id ? 'busy' : t.era>s.era ? 'locked' : 'open'; }
+function study(s,t,now){ if(s.rs || s.tech[t.id] || t.era>s.era || !pay(s,techCost(t))) return false; s.rs={id:t.id,end:now+techTime(t)*1000}; return true; }
+function researchTick(s,now){ if(s.rs && now>=s.rs.end){ const id=s.rs.id; s.tech[id]=1; s.rs=null; return TECHBY[id]; } return null; }
+function rushCost(s,now){ return s.rs ? Math.max(1,Math.ceil((s.rs.end-now)/600000)) : 0; }
+function rush(s,now){ const c=rushCost(s,now); if(!c || s.gems<c) return false; s.gems-=c; s.rs.end=now; return true; }
+
+// ---- prestige: found a new realm; crowns give a lasting bonus
+const PR_ERA = 6;
+function prMult(s){ return 1+.5*(s.pr||0); }
+function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
+function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','flag','flags','claimed','resetAt','pr']) keep[k]=s[k];
+  const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 //LOGIC-END
 
 // Sprites: "Hexagon Pack" by Kenney (kenney.nl), Creative Commons Zero (CC0), re-rendered from the pack's vector file.
@@ -596,7 +669,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
       else if(after.won){ continue; }
       else { if(k<gone) continue; const p=Math.min(1,after.el/2.2), p2=Math.max(0,Math.min(1,(after.el-2.8)/2.4)); const ci=MID+.7+lane*.9, cj=MID+.9+depth*.4;
         i=ti+(ci-ti)*p+(si-ci)*p2*p; j=tj+(cj-tj)*p+(sj-cj)*p2*p; o.walk=after.el*12+k; o.carry=p2>0?['food','wood','stone','gold'][k%4]:null; o.flip=p2>0; }
-      const [x,y]=P(i,j), look=raiderLook(s,o); put(Math.min(GN+EXT-1,i),Math.min(GN+EXT-1,j),()=>person(c,x,y,look)); } }
+      const [x,y]=P(i,j), look=(raid&&raid.team)?guardLook(raid.team,Object.assign(o,{shield:(FLAGS[raid.team.flag]||FLAGS[0]).col})):raiderLook(s,o); put(Math.min(GN+EXT-1,i),Math.min(GN+EXT-1,j),()=>person(c,x,y,look)); } }
   const down = raid ? Math.floor(shown*f*(1-ratio)+1e-6) : 0;
   for(let k=0;k<shown;k++){ let [i,j]=idle[k], o={walk:0,flip:false};
     if(!s.wall){ i=MID+1.1+(k%4)*.45-.6; j=MID+1.25+Math.floor(k/4)*.4; }
@@ -648,7 +721,8 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
 const $ = id => document.getElementById(id);
 const KEY = 'vuursteen-vorst-v2';
 const STILL = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-const TITLES = {b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:'Alfa'};
+const TITLES = {b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
+let VIEW_S=null, VIEW_NAME='', REPLAY=null, ATTACK=null, prConfirm=0;
 let S, tab = 'b', open = false, dirty = false, localLast = 0, readyState = null, MAPT = {z:1,ox:0,oy:0}, CAM = null, AFTER = null, FX = [], warned = 0, thState = '';
 
 let toastT;
@@ -719,14 +793,27 @@ function defHtml(){
   const cap=guardCap(S);
   h+=`<div class="row"><h3>Wachters<i class="num">${S.guards} van ${cap}</i></h3><p>Elke wachter geeft ${fmtRate(guardPower(S)*dm)} verdediging en vecht mee bij de poort. Een hogere kazerne maakt ze sterker. Wachters eten mee van je voedsel${S.era>=3?' en krijgen soldij in goud':''}.</p>`
     +(!cap?'<p class="hint">Bouw eerst een kazerne bij Bouw.</p>':S.guards>=cap?'<p class="hint">Je kazernes zijn vol. Elke extra kazerne geeft 5 plekken.</p>':actLine('Werf wachter','guard','',guardCost(S)))+'</div>';
-  return h; }
+  return h+'<div class="list" id="raidLog"></div>'; }
 function upkeepHtml(){ const u=upkeep(S), g=gross(S,Date.now()), L=[], pc=v => (v*100).toFixed(v<.1?1:0).replace('.',',');
   const add=(k,txt) => { if(u[k]) L.push(`<p><i class="ic ${k}"></i>${txt} <b class="num">${pc(u[k])}%</b> van je ${RES_NAME[k].toLowerCase()}${g[k]>0?' (−'+fmtRate(g[k]*u[k])+'/s)':''}.</p>`); };
   add('food','Inwoners en wachters eten'); add('wood','Onderhoud van gebouwen kost'); add('stone','Muur, poort en torens kosten'); add('gold','Soldij voor wachters kost');
   add('coal','Huizen en fabrieken stoken'); add('power','De stad verbruikt');
   return `<div class="row"><h3>Onderhoud van je stad</h3>${L.join('')}<p class="hint">Meer gebouwen en wachters geven meer onderhoud. De getallen bovenaan zijn wat je netto overhoudt. De edelsteen-upgrade Rentmeester verlaagt het.</p></div>`; }
+function techHtml(){ const now=Date.now(); let h=`<h3 class="sub">Onderzoek</h3>`;
+  if(S.rs){ const t=TECHBY[S.rs.id]; h+=`<div class="row busy"><h3>Bezig: ${t.name}</h3><p>${t.desc}. Klaar over <b class="num" data-rsleft="1"></b>.</p><div class="act">${gemBtn('Maak nu af','rush','',rushCost(S,now),false)}<span class="cost">1 edelsteen per 10 minuten die nog over zijn.</span></div></div>`; }
+  else h+=`<p class="hint">Je onderzoekt één ding tegelijk. Het kost grondstoffen en tijd, en werkt daarna voor altijd.</p>`;
+  const list=TECH.filter(t => t.era<=S.era+1).sort((a,b) => (techState(S,a)==='done')-(techState(S,b)==='done') || a.era-b.era);
+  for(const t of list){ const st=techState(S,t); if(st==='busy') continue;
+    h+=`<div class="row tech ${st}"><h3>${t.name}<i>${ERAS[t.era].name}</i></h3><p>${t.desc}${st==='done'?'':' · duurt '+fmtLeft(techTime(t)*1000)}</p>`
+      +(st==='done' ? '<p><span class="pill on">Onderzocht</span></p>' : st==='locked' ? `<p class="hint">Komt vrij in ${de(ERAS[t.era])}.</p>` : S.rs ? `<p class="cost">${chips(techCost(t))}</p>` : actLine('Onderzoek','study',t.id,techCost(t)))+'</div>'; }
+  return h; }
+function prHtml(){ const g=prGain(S), n=S.pr||0;
+  let h=`<h3 class="sub">Nieuw rijk stichten</h3><div class="row"><h3>Kronen<i class="num">${n}</i></h3><p>Elke kroon geeft blijvend 50% meer productie en tikkracht${n?`. Nu: ${Math.round((prMult(S)-1)*100)}% extra`:''}.</p>`;
+  if(!g) return h+`<p class="hint">Vanaf ${de(ERAS[PR_ERA])} kun je opnieuw beginnen met een nieuw rijk. Hoe verder je komt, hoe meer kronen je krijgt.</p></div>`;
+  return h+`<p>Begin opnieuw in de Steentijd en krijg <b>${g} ${g>1?'kronen':'kroon'}</b> en ${5*g} edelstenen. Je houdt je edelstenen, edelsteen-verbeteringen en vlaggen. Gebouwen, grondstoffen en onderzoek begin je opnieuw.</p>
+    <div class="act"><button class="buy" id="prBtn" data-act="prestige" data-arg="">Sticht een nieuw rijk</button></div></div>`; }
 function upHtml(){
-  let h=upkeepHtml()+`<div class="row"><h3>Beter gereedschap<i class="num">niveau ${S.tool}</i></h3><p>Verdubbelt wat je per tik verzamelt.</p>${actLine('Koop','tool','',toolCost(S))}</div>`;
+  let h=techHtml()+prHtml()+`<h3 class="sub">Overig</h3>`+upkeepHtml()+`<div class="row"><h3>Beter gereedschap<i class="num">niveau ${S.tool}</i></h3><p>Verdubbelt wat je per tik verzamelt.</p>${actLine('Koop','tool','',toolCost(S))}</div>`;
   h+= S.era>=1 ? `<div class="row"><h3>Feestmaal</h3><p>5 minuten lang 50% meer productie. <span id="feastLeft" class="num"></span></p>${actLine('Vier feest','feast','',feastCost(S))}</div>`
                : `<p class="hint">Vanaf de Bronstijd geef je met appels en vlees een feestmaal voor extra productie.</p>`;
   return h+`<p class="hint">Elk nieuw tijdperk geeft 60% meer productie en tikkracht.</p>`; }
@@ -803,6 +890,8 @@ function refresh(){ const now=Date.now(), r=rates(S,now);
   document.querySelectorAll('button[data-cost]').forEach(b => { if(!b._c) b._c=JSON.parse(b.dataset.cost); b.disabled = !can(S,b._c); });
   document.querySelectorAll('button[data-gems]').forEach(b => { b.disabled = S.gems < +b.dataset.gems; });
   const rl=$('raidLeft'); if(rl) rl.textContent = now<S.peaceUntil ? 'Vredesverdrag: nog '+fmtLeft(S.peaceUntil-now)+' geen overvallen.' : S.raidAt ? 'Volgende overval over '+fmtLeft(S.raidAt-now)+'.' : '';
+  const rc=$('rsChip'); if(rc){ rc.hidden=!S.rs || !!VIEW_S || !!REPLAY; if(S.rs){ const t=TECHBY[S.rs.id]; rc.textContent='Onderzoek: '+t.name+' · '+fmtLeft(S.rs.end-now); } }
+  document.querySelectorAll('[data-rsleft]').forEach(n => { n.textContent = S.rs ? fmtLeft(S.rs.end-now) : 'nu'; });
   setLeft('feastLeft',S.feastUntil,now,'Nog ',' actief.'); setLeft('partyLeft',S.partyUntil,now,'Nog ',' actief.');
   setLeft('peaceLeft',S.peaceUntil,now,'Nog ',' actief.'); setLeft('mercLeft',S.mercUntil,now,'Nog ',' actief.'); setLeft('boostLeft',S.boostUntil,now,'Nog ',' actief.'); }
 
@@ -819,6 +908,11 @@ function act(a,arg){ const now=Date.now(); let ok=true;
       FX.push({id:arg,t0:performance.now()});
       toast(BY[arg].name+' niveau '+L+(arg==='barracks'?': wachters 25% sterker':': productie +'+Math.round((LVL[L-1]/LVL[L-2]-1)*100)+'%')+(br.length?'. Nieuw: '+br.join(' en ')+'.':'.')); } break;
     case 'tool': ok=buyTool(S); break;
+    case 'study': ok=study(S,TECHBY[arg],now); if(ok) toast('Onderzoek gestart: '+TECHBY[arg].name); break;
+    case 'rush': ok=rush(S,now); if(ok){ const t=researchTick(S,now); if(t) toast('Onderzoek klaar: '+t.name+'. '+t.desc+'.',5000); } break;
+    case 'prestige': { const b=$('prBtn'); if(now-prConfirm>6000){ prConfirm=now; if(b) b.textContent='Tik nogmaals: begin opnieuw'; return; }
+      prConfirm=0; const g=prestige(S,now); ok=!!g; if(ok){ WORKERS.length=0; CAM=null; AFTER=null; save(); toast('Je nieuwe rijk is gesticht! Je hebt nu '+S.pr+' '+(S.pr>1?'kronen':'kroon')+': '+Math.round((prMult(S)-1)*100)+'% meer productie.',7000); } } break;
+    case 'attack': if(typeof attackPlayer==='function') attackPlayer(arg); return;
     case 'feast': ok=feast(S,now); if(ok) toast('Feestmaal: 5 minuten 50% meer productie'); break;
     case 'wall': ok=buyWall(S); if(ok) toast(WALL[S.wall].name+' gebouwd rond je dorp. Je hebt nu plek voor '+towerCap(S)+' torens.'); break;
     case 'gate': ok=buyGate(S); if(ok) toast(GATE[S.gate].name+' gebouwd.'); break;
@@ -830,7 +924,7 @@ function act(a,arg){ const now=Date.now(); let ok=true;
       const nr=[]; for(const d of BUILD) for(const sd of d.side) if(sd.e===S.era && nr.indexOf(RES_NAME[sd.r].toLowerCase())<0) nr.push(RES_NAME[sd.r].toLowerCase());
       toast(S.era===2 ? 'Welkom in de IJzertijd. Rovers hebben je dorp ontdekt: bouw een muur bij Verdedig.'
         : 'Welkom in '+de(ERAS[S.era])+'. Meer productie, +5 edelstenen'+(fresh.length?', nieuw: '+fresh.join(', '):'')+(nr.length?'. Nieuwe grondstoffen: '+nr.join(', '):'')+'.', 7000); save(); } break;
-    case 'tab': if(open && tab===arg) open=false; else { tab=arg; open=true; if(arg==='a') renderAlfa(); } render(); return;
+    case 'tab': if(open && tab===arg) open=false; else { tab=arg; open=true; if(arg==='a') renderAlfa(); } render(); if(open && arg==='d' && typeof loadRaidLog==='function') loadRaidLog(); return;
     case 'close': open=false; render(); return;
     case 'pick': S.sel=arg; break;
     case 'ad': showAd(); return;
@@ -839,6 +933,8 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'grant': grantUser(arg); return;
     case 'resetMe': adminReset(false); return;
     case 'resetAll': adminReset(true); return;
+    case 'view': viewVillage(arg); return;
+    case 'unview': endView(); return;
     case 'copyMy': try{ navigator.clipboard.writeText($('myCode').textContent).then(() => toast('Herstelcode gekopieerd'), () => {}); }catch(e){} return;
     case 'copyCode': try{ navigator.clipboard.writeText($('gateCode').textContent).then(() => toast('Code gekopieerd'), () => {}); }catch(e){} return;
     default: return; }
@@ -853,26 +949,35 @@ function pill(c,x,y,text,gold){ c.font='800 13px "Alegreya Sans",system-ui,sans-
   c.beginPath(); c.moveTo(x-5,y-1); c.lineTo(x+5,y-1); c.lineTo(x,y+5); c.closePath(); c.fill();
   c.fillStyle = gold ? '#1b140c' : '#ece5d2'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(text,x,y-h/2+1); }
 let lastT=0;
-function draw(t,dt){ const cv=$('map'), w=cv.clientWidth, h=cv.clientHeight; if(!w || !h) return;
+function animTick(now){ for(const k of ['REPLAY','ATTACK']){ const a = k==='REPLAY' ? REPLAY : ATTACK; if(!a || now-a.t0 < (a.dur+5)*1000) continue;
+    if(k==='REPLAY') REPLAY=null; else ATTACK=null; if(a.done) a.done(); } }
+function draw(t,dt){ const cv=$('map'), w=cv.clientWidth, h=cv.clientHeight; if(!w || !h) return; const D=VIEW_S||S, own=!VIEW_S;
   const dpr=Math.min(window.devicePixelRatio||1,2.5), W=Math.round(w*dpr), H=Math.round(h*dpr);
   if(cv.width!==W || cv.height!==H){ cv.width=W; cv.height=H; }
   const c=cv.getContext && cv.getContext('2d'); if(!c) return;
-  const now=Date.now(), R=RAD[S.era], span=2*R+3.6, z0=Math.min(w/(span*TW), h/(span*TH+40));
-  const after = AFTER && now-AFTER.t0<5500 ? AFTER : null, fight = S.raid || after;
+  const now=Date.now(), R=RAD[D.era], span=2*R+3.6, z0=Math.min(w/(span*TW), h/(span*TH+40));
+  let rr=null, after = own && AFTER && now-AFTER.t0<5500 ? AFTER : null;
+  const anim = own ? REPLAY : ATTACK;
+  if(anim){ const el=(now-anim.t0)/1000;
+    if(el<anim.dur) rr={el,dur:anim.dur,n:anim.n,str:anim.str,def:anim.def,team:anim.team||null};
+    else if(el<anim.dur+5) after={el:el-anim.dur,won:anim.defWon,n:anim.n,str:anim.str,def:anim.def};
+  }
+  const fight = (own && S.raid) || rr || after;
   const tg = fight ? {z:Math.min(2.2,z0*1.55), p:P(MID,MID+(after&&!after.won?R*.4:R*.75+.6))} : {z:z0, p:P(MID,MID)};
   if(!CAM || !dt) CAM={z:tg.z,x:tg.p[0],y:tg.p[1]-8};
   else { const k=1-Math.exp(-dt*3.2); CAM.z+=(tg.z-CAM.z)*k; CAM.x+=(tg.p[0]-CAM.x)*k; CAM.y+=(tg.p[1]-8-CAM.y)*k; }
   const z=CAM.z, ox=w/2-CAM.x*z, oy=h/2-CAM.y*z; MAPT={z,ox,oy};
-  if(dt) stepWorkers(S,dt);
-  const reqs=eraReqs(S), marks={}; let markDef=false, done=0;
+  if(dt) stepWorkers(D,dt);
+  const reqs=own?eraReqs(S):[], marks={}; let markDef=false, done=0;
   for(const r of reqs){ if(r.ok){ done++; continue; } if(r.kind==='b') marks[r.id]=1; else if(r.kind!=='res') markDef=true; }
   const pn=performance.now(); FX=FX.filter(f => pn-f.t0<1400);
   const opt={marks,markDef,fx:FX.map(f => ({id:f.id,age:(pn-f.t0)/1000}))};
-  if(S.raid) opt.raid={el:(now-S.raid.start)/1000,dur:RAID_DUR/1000,n:S.raid.n,str:S.raid.str,def:defence(S,now)};
-  else if(after) opt.after={el:(now-after.t0)/1000,won:after.won,n:after.n,str:after.str,def:after.def};
+  if(rr) opt.raid=rr;
+  else if(own && S.raid) opt.raid={el:(now-S.raid.start)/1000,dur:RAID_DUR/1000,n:S.raid.n,str:S.raid.str,def:defence(S,now)};
+  else if(after) opt.after = after.t0!==undefined ? {el:(now-after.t0)/1000,won:after.won,n:after.n,str:after.str,def:after.def} : after;
   c.setTransform(1,0,0,1,0,0); c.fillStyle='#27ae60'; c.fillRect(0,0,W,H);
   c.setTransform(dpr*z,0,0,dpr*z,dpr*ox,dpr*oy); c.imageSmoothingEnabled=true; c.imageSmoothingQuality='high';
-  drawScene(c,S,t,opt);
+  drawScene(c,D,t,opt);
   c.setTransform(dpr,0,0,dpr,0,0);
   if(IMG && reqs.length && !fight){ const go=done===reqs.length, bob=go?Math.sin(t*5)*2:0;
     pill(c, CPT[0]*z+ox, Math.max(26,centerTop(S)*z+oy-12+bob), go ? 'Tik: '+ERAS[S.era+1].name : done+' / '+reqs.length+' eisen', go); } }
@@ -885,12 +990,14 @@ function start(){
   render();
   try{ if(!localStorage.getItem('vv-onderhoud') && buildings(S)>0){ localStorage.setItem('vv-onderhoud','1'); toast('Nieuw: je stad kost nu onderhoud. Het overzicht staat bij Verbeter.',7000); } }catch(e){}
   document.addEventListener('click', e => { const b=e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act, b.dataset.arg||''); });
-  $('map').addEventListener('click', e => { const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
+  $('map').addEventListener('click', e => { if(VIEW_S) return; const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
     if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5) centerTap(); else gather(sx,sy); });
-  $('tapBtn').addEventListener('click', () => { const q=$('field').getBoundingClientRect(); gather(q.width/2, q.height-40); });
+  $('tapBtn').addEventListener('click', () => { if(VIEW_S) return; const q=$('field').getBoundingClientRect(); gather(q.width/2, q.height-40); });
   $('ideaForm').addEventListener('submit', sendIdea); $('msgForm').addEventListener('submit', sendNotice); if($('gateForm')) $('gateForm').addEventListener('submit', tryCode); if($('reqForm')) $('reqForm').addEventListener('submit', adminCode);
   let prev=Date.now();
   setInterval(() => { const now=Date.now(), dt=Math.min((now-prev)/1000, OFFLINE_CAP); prev=now; produce(S,dt,now); autoClick(S,dt);
+    animTick(now);
+    const done=researchTick(S,now); if(done){ dirty=true; toast('Onderzoek klaar: '+done.name+'. '+done.desc+'.',5000); render(); }
     const rn=S.raid?S.raid.n:0, ev=raidTick(S,now,Math.random);
     if(ev){ dirty=true;
       if(ev.type==='start'){ AFTER=null; toast(ev.def>=ev.str ? `Overval! Rovers met sterkte ${ev.str}. Je verdediging van ${ev.def} houdt stand als dat zo blijft.` : `Overval! Rovers met sterkte ${ev.str} tegen jouw ${ev.def}. Bouw snel bij bij Verdedig!`, 6000); }
@@ -960,12 +1067,14 @@ async function afterSync(r, first){
   if(CONFIG.reset_at && CONFIG.reset_at>(S.resetAt||0)) doReset(CONFIG.reset_at);
   let got=0; for(const g of r.gifts||[]){ const k='g'+g.id; if(S.claimed.indexOf(k)>=0 || (+g.at||0)<(S.resetAt||0)) continue; S.claimed.push(k); S.gems+=Math.floor(+g.gems||0); got+=Math.floor(+g.gems||0); }
   if(got){ dirty=true; save(); toast('Cadeau van de spelleider: +'+got+' edelstenen',5000); refresh(); }
+  if(r.topic && r.topic!==MYTOPIC){ MYTOPIC=r.topic; renderPush(); }
+  if(r.attacks && r.attacks.length) incoming(r.attacks);
   if(first){ renderAlfa(); if(OWNER) adminLoad(); }
   if(OWNER && Date.now()-adminT>20000) adminLoad();
 }
 async function sync(force){ const t=token(); if(!t || syncing) return; syncing=true;
   try{ const now=Date.now(), args={p_token:t};
-    if(STATUS==='approved'){ const sum={era:S.era,gems:S.gems,def:defence(S,now)}, js=JSON.stringify(sum); if(js!==lastSum || force){ args.p_stats=sum; lastSum=js; }
+    if(STATUS==='approved'){ const sum={era:S.era,gems:S.gems,def:defence(S,now),bld:buildings(S),atk:attackPower(S,now),pr:S.pr||0}, js=JSON.stringify(sum); if(js!==lastSum || force){ args.p_stats=sum; lastSum=js; }
       if(dirty && (force || now-lastSave>45000)){ S.last=now; args.p_save=clone(S); dirty=false; lastSave=now; } }
     const r=await rpc('sync',args,force); await afterSync(r,false); netState = STATUS==='approved' ? 'aan' : netState; }
   catch(e){ if(STATUS==='approved') dirty=true; }
@@ -976,7 +1085,7 @@ function renderAlfa(){ const st=$('alfaState'); if(!st) return;
   st.textContent = netState==='aan' ? 'Je bent verbonden. Je voortgang wordt online bewaard, zodat je op een ander apparaat verder kunt met je herstelcode.'
     : netState==='fout' ? 'Geen verbinding met de server. Je spel wordt intussen op dit apparaat bewaard.' : 'Verbinden…';
   $('myCode').textContent = token() || '–';
-  $('admin').hidden = !OWNER; loadIdeas();
+  $('admin').hidden = !OWNER; loadIdeas(); loadRanks(); renderPush();
   if(OWNER){ $('inviteWa').href=wa('Doe mee met mijn spel Van Vuursteen tot Vorst! Open '+siteUrl()+' en meld je aan. Ik laat je dan toe.'); renderPlayers(); } }
 async function loadIdeas(){ if(STATUS!=='approved') return; try{ IDEAS=await rpc('ideas_list',{p_token:token()})||[]; }catch(e){ return; } renderIdeas(); }
 function renderIdeas(){ const box=$('ideaList'); if(!box) return; box.textContent='';
@@ -998,7 +1107,7 @@ async function adminLoad(){ if(!OWNER) return; adminT=Date.now();
   if(!TOPIC || CONFIG.site!==siteUrl()){ try{ const c=await rpc('admin_config',{p_token:token(),p_site:siteUrl()}); TOPIC=c.ntfy_topic; CONFIG.site=c.site_url;
       $('ntfyLink').href='https://ntfy.sh/'+TOPIC; $('ntfyTopic').textContent=TOPIC; }catch(e){} }
   const pend=PLAYERS.filter(p => p.status==='pending').length, tb=document.querySelector('.tabs [data-arg="a"]');
-  if(tb) tb.textContent = pend ? 'Alfa ('+pend+')' : 'Alfa';
+  if(tb) tb.textContent = pend ? 'Spelers ('+pend+')' : 'Spelers';
   renderPlayers(); }
 function renderPlayers(){ const req=$('reqList'), box=$('playerList'); if(!req || !box) return; req.textContent=''; box.textContent='';
   const pend=PLAYERS.filter(p => p.status==='pending'), rest=PLAYERS.filter(p => p.status!=='pending');
@@ -1029,6 +1138,82 @@ async function adminReset(all){ const key=all?'all':'me', now=Date.now(), btn=$(
   if(!all){ doReset(S.resetAt||0); toast('Je eigen spel is opnieuw gestart.',4000); return; }
   try{ const c=await rpc('admin_config',{p_token:token(),p_reset:true}); doReset(+c.reset_at); }catch(err){ toast('Resetten lukte niet: '+err.message); } }
 function tryCode(e){ e.preventDefault(); } function adminCode(e){ e.preventDefault(); }
+
+// --- ranking and looking at each other's villages
+let RANKS=[], rankT=0;
+async function loadRanks(){ if(STATUS!=='approved') return; rankT=Date.now();
+  try{ RANKS=await rpc('leaderboard',{p_token:token()})||[]; }catch(e){ return; } renderRanks(); }
+function renderRanks(){ const box=$('rankList'); if(!box) return; box.textContent='';
+  if(!RANKS.length){ box.append(mk('p','hint','Nog geen spelers.')); return; }
+  RANKS.forEach((p,i) => { const e=ERAS[+p.era]||ERAS[0], row=mk('div','row rank'+(p.me?' mine':'')), h=mk('h3');
+    h.append(mk('span','pos num',String(i+1)), document.createTextNode(p.name)); if(p.me) h.append(mk('i','','jij'));
+    const bar=mk('span','erabar'); const fill=mk('i'); fill.style.width=Math.round((+p.era+1)/ERAS.length*100)+'%'; bar.append(fill);
+    row.append(h, mk('p','',`${e.name} · ${+p.bld||0} gebouwen · verdediging ${+p.def||0} · actief ${ago(+p.seen)}`), bar);
+    const a=mk('div','act');
+    if(!p.me && p.has){ const b=mk('button','buy','Bekijk dorp'); b.dataset.act='view'; b.dataset.arg=p.id; a.append(b); }
+    if(!p.me){ const now=Date.now(), my=attackPower(S,now), st=attackState(p,now);
+      const b=mk('button','buy','Val aan'); b.dataset.act='attack'; b.dataset.arg=p.id; b.id='atk-'+p.id; if(st) b.disabled=true; a.append(b);
+      a.append(mk('span','cost atk', st || `Jouw aanval ${my} tegen hun verdediging ${+p.def||0}. Kans: ${my>p.def*1.15?'groot':my>p.def*.85?'gelijk':'klein'}.`)); }
+    if(a.children.length) row.append(a);
+    box.append(row); }); }
+async function viewVillage(id){ const p=RANKS.find(x => x.id===id);
+  try{ const d=await rpc('player_village',{p_token:token(),p_player:id}); if(!d){ toast('Dit dorp is nog niet te bekijken.'); return; }
+    const v=hydrate(Object.assign({},d,{res:{}}),Date.now()); v.raid=null; VIEW_S=v; VIEW_NAME=p?p.name:'';
+    WORKERS.length=0; CAM=null; open=false; render();
+    $('viewText').textContent=`Dorp van ${VIEW_NAME} · ${ERAS[v.era].name}`; $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true; }
+  catch(e){ toast(e.message); } }
+function endView(){ VIEW_S=null; WORKERS.length=0; CAM=null; $('viewBar').hidden=true; $('chips').hidden=false; $('tapBtn').hidden=false; render(); }
+setInterval(() => { if(open && tab==='a' && STATUS==='approved' && Date.now()-rankT>30000) loadRanks(); }, 5000);
+
+// --- attacking other players
+let MYTOPIC='', lastAttack=0, atkConfirm={id:'',t:0}, atkBusy=false;
+try{ lastAttack=+localStorage.getItem('vv-lastatk')||0; }catch(e){}
+function attackState(p,now){
+  if(S.era<2) return 'Aanvallen kan vanaf de IJzertijd.';
+  if(!S.guards) return 'Werf eerst wachters bij Verdedig.';
+  if(+p.era<2) return 'Nog beschermd tot hun IJzertijd.';
+  if(+p.shield>now) return 'Net geplunderd, beschermd tot '+new Date(+p.shield).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+'.';
+  if(now-lastAttack<600000) return 'Je leger rust nog '+fmtLeft(600000-(now-lastAttack))+'.';
+  if(ATTACK || VIEW_S) return 'Er loopt al een aanval.';
+  return ''; }
+async function attackPlayer(id){ const p=RANKS.find(x => x.id===id); if(!p || atkBusy) return; const now=Date.now(), b=$('atk-'+id);
+  if(atkConfirm.id!==id || now-atkConfirm.t>6000){ atkConfirm={id,t:now}; if(b) b.textContent='Tik nogmaals: val aan'; return; }
+  atkConfirm={id:'',t:0}; atkBusy=true;
+  try{ await sync(true); const r=await rpc('attack',{p_token:token(),p_target:id}); lastAttack=Date.now(); try{ localStorage.setItem('vv-lastatk',String(lastAttack)); }catch(e){}
+    let d=null; try{ d=await rpc('player_village',{p_token:token(),p_player:id}); }catch(e){}
+    const v=hydrate(Object.assign({},d||{era:p.era},{res:{}}),Date.now()); v.raid=null; VIEW_S=v; VIEW_NAME=p.name;
+    WORKERS.length=0; CAM=null; open=false; render();
+    $('viewText').textContent=`Aanval op ${p.name}: jouw ${r.atk} tegen hun ${r.def}`; $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true;
+    const n=Math.min(12,3+Math.ceil(S.guards/3));
+    // the result is already decided by the server; apply it now, show it when the fight ends
+    const lootMul=1+tb(S,'loot'), lg=Math.floor((+(r.loot&&r.loot.gold)||0)*lootMul), lf=Math.floor((+(r.loot&&r.loot.food)||0)*lootMul), lostG=Math.ceil(S.guards*(r.won?.1:.3));
+    S.guards=Math.max(0,S.guards-lostG); if(r.won){ S.res.gold+=lg; S.res.food+=lf; } dirty=true; save();
+    ATTACK={t0:Date.now(),dur:14,n,str:r.atk,def:r.def,defWon:!r.won,team:{era:S.era,flag:S.flag},
+      done(){ toast(r.won ? `Gewonnen! Buit: ${fmt(lg)} goud en ${fmt(lf)} voedsel. Je verloor ${lostG} wachters.` : `De aanval op ${p.name} is mislukt. Je verloor ${lostG} wachters.`,7000);
+        setTimeout(() => { if(VIEW_S && VIEW_NAME===p.name) endView(); loadRanks(); }, 1500); } }; }
+  catch(e){ toast(e.message,5000); }
+  atkBusy=false; }
+// attacks on my village while I was away (or just now): apply, show a replay, then acknowledge
+function incoming(list){ const ids=[]; let msgs=[];
+  for(const a of list){ ids.push(a.id);
+    if(a.won){ const lg=Math.min(S.res.gold, +(a.loot&&a.loot.gold)||0), lf=Math.min(S.res.food, +(a.loot&&a.loot.food)||0), lo=Math.ceil(S.guards*.1);
+      S.res.gold-=lg; S.res.food-=lf; S.guards=Math.max(0,S.guards-lo); msgs.push(`${a.by} heeft je dorp geplunderd: ${fmt(lg)} goud en ${fmt(lf)} voedsel kwijt.`); }
+    else msgs.push(`${a.by} viel je aan, maar je verdediging hield stand (${a.def} tegen ${a.atk}).`); }
+  dirty=true; save(); rpc('raids_ack',{p_token:token(),p_ids:ids}).catch(()=>{});
+  const last=list[list.length-1];
+  if(!VIEW_S && !REPLAY){ REPLAY={t0:Date.now()+600,dur:14,n:Math.min(12,4+Math.round(Math.log2((+last.atk||1)+1))),str:+last.atk,def:+last.def,defWon:!last.won,
+      done(){ toast(msgs.join(' '),8000); $('replayBar').hidden=true; $('chips').hidden=false; }};
+    $('replayBar').textContent=(list.length>1?list.length+' aanvallen terwijl je weg was · ':'')+'Herhaling: '+last.by+' valt je dorp aan'; $('replayBar').hidden=false; $('chips').hidden=true; open=false; render(); }
+  else toast(msgs.join(' '),8000); }
+async function loadRaidLog(){ const box=$('raidLog'); if(!box || STATUS!=='approved') return; let L=[];
+  try{ L=await rpc('raid_log',{p_token:token()})||[]; }catch(e){ return; }
+  box.textContent=''; box.append(mk('h3','sub','Gevechtsverslag'));
+  if(!L.length){ box.append(mk('p','hint','Nog geen gevechten met andere spelers. Je kunt aanvallen vanuit de ranglijst bij Spelers.')); return; }
+  for(const x of L){ const mine = x.dir==='uit' ? x.won : !x.won, row=mk('div','row'), lt=x.loot||{};
+    const h=mk('h3','', x.dir==='uit' ? 'Jij viel '+x.other+' aan' : x.other+' viel jou aan'); h.append(mk('i','',ago(+x.at)));
+    const pl=mk('p'); pl.append(mk('span','pill '+(mine?'on':'bad'), mine?'Gewonnen':'Verloren'));
+    row.append(h, mk('p','',`Aanval ${x.atk} tegen verdediging ${x.def}`+(x.won&&lt.gold!==undefined?` · buit ${fmt(+lt.gold||0)} goud, ${fmt(+lt.food||0)} voedsel`:'')), pl); box.append(row); } }
+function renderPush(){ const t=$('pushTopic'); if(!t) return; t.textContent=MYTOPIC||'…'; $('pushLink').href='https://ntfy.sh/'+(MYTOPIC||''); }
 
 window.claude && window.claude.hot && window.claude.hot.ready ? window.claude.hot.ready(start) : start();
 </script>
