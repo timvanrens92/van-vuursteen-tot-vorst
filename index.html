@@ -166,6 +166,12 @@ form .buy{align-self:flex-start}
 .replaybar{position:absolute;left:8px;right:8px;top:8px;background:rgba(90,26,18,.92);color:#fff3e4;border-radius:8px;padding:8px 12px;font-weight:800;font-size:15px;z-index:3;text-align:center}
 #pushTopic{font-family:var(--body);font-size:19px;letter-spacing:0;color:var(--gold);margin:0;word-break:break-all}
 
+#news{position:absolute;inset:0;background:rgba(10,14,11,.88);z-index:9;display:flex;align-items:center;justify-content:center;padding:20px}
+#news>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;max-width:380px;display:flex;flex-direction:column;gap:10px}
+#news ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px}
+#news .buy{align-self:flex-start}
+.updbar{position:absolute;left:8px;right:8px;bottom:60px;z-index:7;background:var(--gold);color:#1b140c;font-weight:800;border-radius:8px;padding:10px;font-size:15px}
+
 </style>
 </head>
 <body>
@@ -262,6 +268,12 @@ form .buy{align-self:flex-start}
     <div id="g-err" hidden><p>De server is nu niet bereikbaar.</p></div>
     <p class="hint" id="gateMsg" role="status"></p>
   </div></div>
+  <div id="news" hidden><div>
+    <h2>Nieuw in het spel</h2>
+    <ul id="newsList"></ul>
+    <button class="buy" onclick="document.getElementById('news').hidden=true">Speel verder</button>
+  </div></div>
+  <button class="updbar" id="updBar" hidden onclick="location.reload()">Er is een nieuwe versie. Tik hier om te vernieuwen.</button>
   <div id="ad" hidden><div><span class="demo">Demo-advertentie</span><b id="adN" class="num">5</b><p>Hier komt later een echte beloonde advertentie. Na afloop krijg je 2 minuten dubbele productie.</p></div></div>
 </div>
 
@@ -1014,6 +1026,8 @@ function start(){
 }
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
+const GAME_VERSION='2026-11-20';
+const NEWS=['Ranglijst: zie hoe ver de andere spelers zijn, en bekijk hun dorp.','Onderzoek: een technologieboom per tijdperk, te vinden bij Verbeter.','Nieuw rijk stichten: vanaf de Koloniale Tijd begin je opnieuw met kronen die blijvend meer opleveren.','Overvallen: val andere spelers aan vanuit de ranglijst en zie het gevecht live. Word je zelf aangevallen, dan zie je een herhaling.','Meldingen: krijg een pushbericht op je telefoon als je wordt aangevallen. Zie Spelers.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1055,6 +1069,7 @@ async function net(){
 }
 async function afterSync(r, first){
   const was=STATUS; STATUS=r.status;
+  if(r.version && r.version>GAME_VERSION) $('updBar').hidden=false;
   if(r.status==='unknown'){ setToken(''); STATUS=''; gateView('join','Je aanmelding bestaat niet meer. Meld je opnieuw aan.'); return; }
   if(r.status==='pending'){ netState='wacht'; gateView('wait'); $('waitName').textContent=r.name||''; setTimeout(() => sync(false).catch(()=>{}), 10000); return; }
   if(r.status==='blocked'){ gateView('block'); return; }
@@ -1069,7 +1084,7 @@ async function afterSync(r, first){
   if(got){ dirty=true; save(); toast('Cadeau van de spelleider: +'+got+' edelstenen',5000); refresh(); }
   if(r.topic && r.topic!==MYTOPIC){ MYTOPIC=r.topic; renderPush(); }
   if(r.attacks && r.attacks.length) incoming(r.attacks);
-  if(first){ renderAlfa(); if(OWNER) adminLoad(); }
+  if(first){ renderAlfa(); if(OWNER) adminLoad(); showNews(); }
   if(OWNER && Date.now()-adminT>20000) adminLoad();
 }
 async function sync(force){ const t=token(); if(!t || syncing) return; syncing=true;
@@ -1214,6 +1229,12 @@ async function loadRaidLog(){ const box=$('raidLog'); if(!box || STATUS!=='appro
     const pl=mk('p'); pl.append(mk('span','pill '+(mine?'on':'bad'), mine?'Gewonnen':'Verloren'));
     row.append(h, mk('p','',`Aanval ${x.atk} tegen verdediging ${x.def}`+(x.won&&lt.gold!==undefined?` · buit ${fmt(+lt.gold||0)} goud, ${fmt(+lt.food||0)} voedsel`:'')), pl); box.append(row); } }
 function renderPush(){ const t=$('pushTopic'); if(!t) return; t.textContent=MYTOPIC||'…'; $('pushLink').href='https://ntfy.sh/'+(MYTOPIC||''); }
+
+// --- what's new: shown once per version to players who already played; a bar when a newer version is live
+function showNews(){ let seen=''; try{ seen=localStorage.getItem('vv-version')||''; }catch(e){}
+  if(seen===GAME_VERSION) return; try{ localStorage.setItem('vv-version',GAME_VERSION); }catch(e){}
+  if(!seen && buildings(S)===0 && S.era===0) return;
+  const ul=$('newsList'); ul.textContent=''; for(const n of NEWS) ul.append(mk('li','',n)); $('news').hidden=false; }
 
 window.claude && window.claude.hot && window.claude.hot.ready ? window.claude.hot.ready(start) : start();
 </script>
