@@ -27,8 +27,9 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{background:var(--ground);color:var(--bone);font-family:var(--body);font-size:16px;line-height:1.3;display:flex;justify-content:center;overflow:hidden}
-#app{width:100%;max-width:520px;height:100%;min-height:480px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+#app{width:100%;max-width:520px;height:100%;height:100dvh;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
@@ -73,7 +74,7 @@ h3.sub{margin:8px 0 0;font-size:13px;letter-spacing:.07em;text-transform:upperca
 .notice p{margin:0;overflow-wrap:anywhere}
 .demo{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:6px 0 0}
 
-#field{flex:1 1 0;min-height:150px;position:relative;overflow:hidden;background:#27ae60;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#field{flex:1 1 0;min-height:120px;position:relative;overflow:hidden;background:#27ae60;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 #map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:pointer}
 .chips{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:5px}
 .chips button{background:rgba(24,33,27,.82);border:1px solid rgba(236,229,210,.25);border-radius:999px;padding:4px 11px;font-size:14px;color:var(--bone);text-align:left}
@@ -84,8 +85,8 @@ h3.sub{margin:8px 0 0;font-size:13px;letter-spacing:.07em;text-transform:upperca
 @keyframes fly{to{transform:translate(var(--dx),-60px);opacity:0}}
 @media (prefers-reduced-motion:reduce){.fly{display:none}.erabtn.ready{animation:none}}
 
-#sheet{flex:none;height:40%;display:flex;flex-direction:column;background:var(--ground);border-top:2px solid var(--line)}
-#sheet.tall{height:60%}
+#sheet{flex:0 1 40%;min-height:0;display:flex;flex-direction:column;background:var(--ground);border-top:2px solid var(--line)}
+#sheet.tall{flex-basis:58%}
 .sheethead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px 6px}
 .sheethead button{border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:14px;color:var(--muted);font-weight:700}
 #sheetBody{flex:1;overflow-y:auto;padding:2px 10px 12px;-webkit-overflow-scrolling:touch}
@@ -208,6 +209,30 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
 .report li{margin:4px 0}
 .report .hint{color:#6b5a42}
 
+/* short or zoomed phone screens: keep the bottom tabs and the village in view */
+@media (max-height:760px){
+  #hud{padding:6px 8px 4px;gap:4px}
+  .erabtn{padding:3px 10px 4px} .erabtn span{font-size:22px} .erabtn small{font-size:13px}
+  .res div{padding:2px 3px} .res b{font-size:15px} .res small{font-size:11px}
+  .side span{font-size:12px;padding:1px 8px}
+  .tabs button{padding:8px 2px 9px}
+  .sheethead{padding:5px 12px 4px} .sheethead h2{font-size:21px}
+}
+@media (max-height:620px){
+  .res small{display:none}
+  .erabtn small{font-size:12px}
+}
+@media (max-height:560px){ #field{min-height:96px} .side{display:none} }
+
+.notice{position:relative;padding-right:40px}
+.noticex{position:absolute;right:4px;top:2px;width:34px;height:34px;font-size:22px;line-height:1;color:var(--muted)}
+#field{container-type:size}
+@container (max-height:250px){
+  .chips{flex-direction:row;flex-wrap:wrap;right:120px;gap:4px}
+  .chips button{padding:2px 9px;font-size:13px}
+}
+@media (max-width:360px){ .tabs button{font-size:12.5px;white-space:nowrap} .tapbtn{left:8px;transform:none} }
+
 </style>
 </head>
 <body>
@@ -221,7 +246,7 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
     <div class="side" id="side" aria-label="Bijproducten"></div>
     <button class="threat" id="threat" data-act="tab" data-arg="d" hidden><span id="thText" class="num"></span><span class="bar"><i id="thBar"></i></span></button>
   </header>
-  <div id="notice" class="notice" hidden><span class="demo">Mededeling van de spelleider</span><p id="noticeText"></p></div>
+  <div id="notice" class="notice" hidden><button class="noticex" aria-label="Mededeling verbergen" onclick="try{localStorage.setItem('vv-notice',CONFIG.msg)}catch(e){};this.parentNode.hidden=true">×</button><span class="demo">Mededeling van de spelleider</span><p id="noticeText"></p></div>
 
   <main id="field">
     <canvas id="map" role="img" aria-label="Je dorp. Tik op het land om te verzamelen, tik op het hoofdgebouw voor het volgende tijdperk."></canvas>
@@ -1266,7 +1291,7 @@ async function afterSync(r, first){
   if(first){ try{ const d=await rpc('load_save',{p_token:token()});
       if(d && d.v===V && d.last > localLast+1000){ S=hydrate(clone(d),Date.now()); applyAway(Date.now()); toast('Je voortgang van een ander apparaat is geladen',4000); render(); } }catch(e){} }
   CONFIG={msg:r.msg||'',reset_at:+r.reset_at||0};
-  $('notice').hidden=!CONFIG.msg; $('noticeText').textContent=CONFIG.msg;
+  let dis=''; try{ dis=localStorage.getItem('vv-notice')||''; }catch(e){} $('notice').hidden=!CONFIG.msg || dis===CONFIG.msg; $('noticeText').textContent=CONFIG.msg;
   if(CONFIG.reset_at && CONFIG.reset_at>(S.resetAt||0)) doReset(CONFIG.reset_at);
   let got=0; const notes=[]; for(const g of r.gifts||[]){ const k='g'+g.id; if(S.claimed.indexOf(k)>=0 || (+g.at||0)<(S.resetAt||0)) continue; S.claimed.push(k); const n=Math.floor(+g.gems||0); S.gems+=n; if(g.note) notes.push(g.note+': +'+n+' edelstenen.'); else got+=n; }
   for(const m of notes){ dirty=true; if(!reportAdd(m)) toast(m,6000); }
