@@ -173,10 +173,11 @@ form .buy{align-self:flex-start}
 .replaybar{position:absolute;left:8px;right:8px;top:8px;background:rgba(90,26,18,.92);color:#fff3e4;border-radius:8px;padding:8px 12px;font-weight:800;font-size:15px;z-index:3;text-align:center}
 #pushTopic{font-family:var(--body);font-size:19px;letter-spacing:0;color:var(--gold);margin:0;word-break:break-all}
 
-#news{position:absolute;inset:0;background:rgba(10,14,11,.88);z-index:9;display:flex;align-items:center;justify-content:center;padding:20px}
-#news>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;max-width:380px;display:flex;flex-direction:column;gap:10px}
-#news ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px}
-#news .buy{align-self:flex-start}
+#news{position:fixed;inset:0;background:rgba(10,14,11,.88);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+#news[hidden]{display:none}
+#news>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;max-width:380px;width:100%;max-height:100%;display:flex;flex-direction:column;gap:10px;min-height:0}
+#news ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15px;overflow-y:auto;min-height:0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+#news .buy{align-self:stretch;flex:0 0 auto}
 .updbar{position:absolute;left:8px;right:8px;bottom:60px;z-index:7;background:var(--gold);color:#1b140c;font-weight:800;border-radius:8px;padding:10px;font-size:15px}
 
 .worldbtn{position:absolute;right:8px;bottom:8px;background:rgba(24,33,27,.86);color:var(--bone);border:1px solid rgba(236,229,210,.3);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px;z-index:2}
@@ -293,7 +294,7 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
     <div id="g-err" hidden><p>De server is nu niet bereikbaar.</p></div>
     <p class="hint" id="gateMsg" role="status"></p>
   </div></div>
-  <div id="news" hidden><div>
+  <div id="news" hidden onclick="if(event.target===this)this.hidden=true"><div>
     <h2>Nieuw in het spel</h2>
     <ul id="newsList"></ul>
     <button class="buy" onclick="document.getElementById('news').hidden=true">Speel verder</button>

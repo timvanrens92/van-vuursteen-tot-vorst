@@ -60,8 +60,21 @@ button.b:disabled{opacity:.5;cursor:default}
 .gift input.note{width:160px}
 .packs td input{width:100%}
 .steps li{margin:6px 0}
-code{background:#f1e8d2;padding:1px 5px;border-radius:5px}
+code{background:#f1e8d2;padding:1px 5px;border-radius:5px;word-break:break-all}
 [hidden]{display:none!important}
+@media(max-width:720px){
+  header{padding:10px 14px} header h1{font-size:22px} nav{padding:8px 10px 0} main{padding:0 10px 30px} .panel{padding:14px 12px;border-radius:0 12px 12px 12px}
+  table,tbody,thead,tr,td{display:block;width:100%} table tr:first-child:has(th), thead{display:none}
+  tr{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 10px}
+  td{border:0;padding:3px 0;text-align:left!important} td.num{text-align:left}
+  td[data-l]::before{content:attr(data-l) ": ";color:var(--muted);font-size:13px}
+  td:empty{display:none}
+  input[type=search]{min-width:0;width:100%}
+  .gift{width:100%} .gift input[type=number]{width:90px} .gift input.note{flex:1;min-width:0} form.gift[data-id=all] input.note{flex:1 1 100%;order:3} form.gift[data-id=all] button{order:2}
+  .packs tr td::before{display:block;margin-bottom:2px}
+  .tiles{grid-template-columns:1fr 1fr} .tile .v{font-size:22px}
+}
+
 </style>
 </head>
 <body>
@@ -155,14 +168,14 @@ function drawCharts(){ const s=STATS;
 // ---- signups
 function reqHtml(){ const P=PLAYERS.filter(p=>p.status==='pending');
   return `<h2>Aanmeldingen</h2><p class="hint">Nieuwe spelers kunnen pas spelen als jij ze toelaat. Ze krijgen dan een melding. Kwam iemand via een uitnodiging, dan krijgt de uitnodiger automatisch ${n(STATS.ref_gems)} edelstenen.</p>`
-    +(P.length?`<table><tr><th>Naam</th><th>Aangemeld</th><th>Uitgenodigd door</th><th></th></tr>${P.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td>${ago(p.created)}</td><td>${esc(p.ref||'–')}</td>
+    +(P.length?`<table><tr><th>Naam</th><th>Aangemeld</th><th>Uitgenodigd door</th><th></th></tr>${P.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td data-l="Aangemeld">${ago(p.created)}</td><td data-l="Uitgenodigd door">${esc(p.ref||'–')}</td>
       <td class="num"><button class="b" data-a="st" data-id="${p.id}" data-v="approved">Laat toe</button> <button class="b alt" data-a="st" data-id="${p.id}" data-v="blocked">Wijs af</button></td></tr>`).join('')}</table>`:'<p class="empty">Geen open aanmeldingen.</p>'); }
 
 // ---- players: search by name and give gems
 function plRows(){ const q=FILTER.q.trim().toLowerCase(), L=PLAYERS.filter(p=>p.status!=='pending' && (!q || p.name.toLowerCase().includes(q)));
   if(!L.length) return `<tr><td colspan="6" class="empty">Geen speler gevonden${q?` met "${esc(FILTER.q)}"`:''}.</td></tr>`;
-  return L.map(p=>`<tr><td><b>${esc(p.name)}</b>${p.is_admin?' <span class="pill warn">spelleider</span>':''}${p.status==='blocked'?' <span class="pill bad">geblokkeerd</span>':''}<div class="hint">${p.ref?'via '+esc(p.ref)+' · ':''}${+p.refs?p.refs+' uitgenodigd · ':''}${+p.paid?'betaalde '+eur(p.paid):''}</div></td>
-    <td>${ERAS[+p.era]||ERAS[0]}${+p.pr?' · '+p.pr+' kronen':''}</td><td class="num">${n(p.gems)}</td><td>${ago(p.seen)}</td>
+  return L.map(p=>`<tr><td><b>${esc(p.name)}</b>${p.is_admin?' <span class="pill warn">spelleider</span>':''}${p.status==='blocked'?' <span class="pill bad">geblokkeerd</span>':''}<div class="hint">${[p.ref?'via '+esc(p.ref):'', +p.refs?p.refs+' uitgenodigd':'', +p.paid?'betaalde '+eur(p.paid):''].filter(Boolean).join(' · ')}</div></td>
+    <td data-l="Tijdperk">${ERAS[+p.era]||ERAS[0]}${+p.pr?' · '+p.pr+' kronen':''}</td><td class="num" data-l="Edelstenen">${n(p.gems)}</td><td data-l="Laatst gezien">${ago(p.seen)}</td>
     <td>${p.status==='approved'?`<form class="gift" data-id="${p.id}"><input type="number" min="1" max="100000" value="50" aria-label="Aantal edelstenen"><input class="note" maxlength="80" placeholder="Bericht (mag leeg)" aria-label="Bericht"><button class="b" type="submit">Geef</button></form>`:''}</td>
     <td class="num">${p.is_admin?'':p.status==='approved'?`<button class="b alt" data-a="st" data-id="${p.id}" data-v="blocked">Blokkeer</button>`:`<button class="b alt" data-a="st" data-id="${p.id}" data-v="approved">Toelaten</button>`}</td></tr>`).join(''); }
 function plHtml(){ return `<h2>Spelers</h2><div class="row"><input type="search" id="q" placeholder="Zoek een speler op naam" value="${esc(FILTER.q)}" aria-label="Zoek speler"><span class="hint">${PLAYERS.filter(p=>p.status!=='pending').length} spelers</span></div>
@@ -180,12 +193,12 @@ function ideasHtml(){ const L=IDEAS.filter(i=>(FILTER.idea==='alle'||i.status===
 // ---- payments
 async function loadPays(){ try{ PAYS=await rpc('admin_payments'); }catch(e){ return; } const b=$('payBody'); if(b) b.innerHTML=payRows(); }
 function payRows(){ if(!PAYS.length) return '<tr><td colspan="5" class="empty">Nog geen betalingen.</td></tr>';
-  return PAYS.map(p=>`<tr><td>${new Date(p.at).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p.name||'onbekend')}</td><td>${esc(p.pack)}</td><td class="num">${n(p.gems)}</td><td class="num">${eur(p.cents)} ${p.status!=='paid'?'<span class="pill warn">controleren</span>':''}</td></tr>`).join(''); }
+  return PAYS.map(p=>`<tr><td data-l="Moment">${new Date(p.at).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'})}</td><td data-l="Speler">${esc(p.name||'onbekend')}</td><td data-l="Pakket">${esc(p.pack)}</td><td class="num" data-l="Edelstenen">${n(p.gems)}</td><td class="num" data-l="Bedrag">${eur(p.cents)} ${p.status!=='paid'?'<span class="pill warn">controleren</span>':''}</td></tr>`).join(''); }
 function payHtml(){ const P=STATS.packs||[], rows=[...P,{},{},{}].slice(0,Math.max(4,P.length+1));
   return `<h2>Betalingen</h2><div class="tiles">${tile('Omzet totaal',eur(STATS.revenue))}${tile('Laatste 30 dagen',eur(STATS.revenue30))}${tile('Betalende spelers',n(STATS.payers))}</div>
   <h3>Pakketten in de winkel</h3><p class="hint">Maak per pakket een betaallink in Stripe en plak hem hier. Alleen pakketten met een link verschijnen in de winkel van het spel.</p>
   <form id="packForm"><table class="packs"><tr><th>Naam</th><th>Edelstenen</th><th>Prijs (€)</th><th>Stripe betaallink (https://buy.stripe.com/…)</th><th>Link-ID (plink_…, mag leeg)</th></tr>
-  ${rows.map(k=>`<tr><td><input name="name" value="${esc(k.name||'')}" placeholder="Zak edelstenen"></td><td><input name="gems" type="number" min="1" value="${k.gems||''}"></td><td><input name="eur" type="number" step="0.01" min="0.5" value="${k.cents?(k.cents/100).toFixed(2):''}"></td><td><input name="url" value="${esc(k.url||'')}"></td><td><input name="link_id" value="${esc(k.link_id||'')}"></td></tr>`).join('')}
+  ${rows.map(k=>`<tr><td data-l="Naam"><input name="name" value="${esc(k.name||'')}" placeholder="Zak edelstenen"></td><td data-l="Edelstenen"><input name="gems" type="number" min="1" value="${k.gems||''}"></td><td data-l="Prijs (€)"><input name="eur" type="number" step="0.01" min="0.5" value="${k.cents?(k.cents/100).toFixed(2):''}"></td><td data-l="Stripe betaallink"><input name="url" value="${esc(k.url||'')}"></td><td data-l="Link-ID (mag leeg)"><input name="link_id" value="${esc(k.link_id||'')}"></td></tr>`).join('')}
   </table><p><button class="b" type="submit">Bewaar pakketten</button></p></form>
   <h3>Betalingen</h3><table><thead><tr><th>Moment</th><th>Speler</th><th>Pakket</th><th class="num">Edelstenen</th><th class="num">Bedrag</th></tr></thead><tbody id="payBody">${payRows()}</tbody></table>
   <h3>Stripe koppelen (eenmalig)</h3><ol class="steps">
