@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spelleidersportaal · Van Vuursteen tot Vorst</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#efe6d0;--card:#fbf6ea;--ink:#2a1d10;--ink2:#5b4a35;--muted:#8a7a63;--line:#dccfb2;--brand:#8a5a12;--brand2:#3a2816;--accent:#b8862b;--good:#2f7a4a;--bad:#a8321e;--warn:#b2761a;--bar:#b8862b;--bar2:#e2cf9f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Alegreya Sans",system-ui,sans-serif}
+header{background:var(--brand2);color:#f6eedb;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font:800 26px "Grenze Gotisch",serif;margin:0;letter-spacing:.5px}
+header .sub{opacity:.75;font-size:13px}
+header .sp{flex:1}
+header a,header button.lnk{color:#f0d79a;background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline}
+nav{display:flex;gap:4px;padding:10px 20px 0;flex-wrap:wrap;max-width:1180px;margin:0 auto}
+nav button{border:1px solid var(--line);border-bottom:0;background:#e6dbc0;color:var(--ink2);padding:8px 14px;border-radius:10px 10px 0 0;font:700 14px inherit;font-family:inherit;cursor:pointer}
+nav button[aria-pressed=true]{background:var(--card);color:var(--ink)}
+nav .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--bad);color:#fff;font-size:12px;text-align:center}
+main{max-width:1180px;margin:0 auto;padding:0 20px 40px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:0 12px 12px 12px;padding:18px 20px}
+h2{font:800 24px "Grenze Gotisch",serif;margin:4px 0 12px;color:var(--brand2)}
+h3{margin:18px 0 8px;font-size:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.tile .k{color:var(--muted);font-size:13px}
+.tile .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .d{font-size:12px;color:var(--ink2)}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card h3{margin-top:0}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.tip{position:absolute;pointer-events:none;background:var(--brand2);color:#fff;padding:4px 8px;border-radius:6px;font-size:12px;white-space:nowrap;transform:translate(-50%,-110%)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--muted);font-weight:700}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid #c9b88f;border-radius:8px;background:#fff;color:var(--ink)}
+input[type=search]{min-width:260px}
+button.b{font:700 14px inherit;font-family:inherit;padding:7px 12px;border-radius:8px;border:1px solid #6b4a22;background:var(--brand);color:#fff;cursor:pointer}
+button.b.alt{background:#fff;color:var(--brand2)}
+button.b.bad{background:var(--bad);border-color:var(--bad)}
+button.b:disabled{opacity:.5;cursor:default}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700;background:#eee3c8;color:var(--ink2)}
+.pill.on{background:#dcefe2;color:var(--good)}.pill.bad{background:#f6ddd6;color:var(--bad)}.pill.warn{background:#f7ead0;color:var(--warn)}
+.hint{color:var(--muted);font-size:13px}
+.empty{color:var(--muted);padding:12px 0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--brand2);color:#fff;padding:10px 16px;border-radius:10px;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.login{max-width:440px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.login input{width:100%;margin:8px 0 12px}
+.gift{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.gift input[type=number]{width:90px}
+.gift input.note{width:160px}
+.packs td input{width:100%}
+.steps li{margin:6px 0}
+code{background:#f1e8d2;padding:1px 5px;border-radius:5px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>Spelleidersportaal</h1><span class="sub">Van Vuursteen tot Vorst</span><span class="sp"></span><a href="./" target="_blank" rel="noopener">Open het spel</a><button class="lnk" id="logout" hidden>Uitloggen</button></header>
+
+<div id="loginView" class="login" hidden>
+  <h2>Inloggen</h2>
+  <p>Vul je herstelcode in. Die vind je in het spel bij Spelers, onder "Jouw herstelcode". Alleen de spelleider komt hier binnen.</p>
+  <form id="loginForm"><label for="codeIn">Herstelcode</label><input id="codeIn" autocomplete="off" spellcheck="false"><button class="b" type="submit">Inloggen</button></form>
+  <p class="hint" id="loginMsg" role="status"></p>
+</div>
+
+<div id="app" hidden>
+<nav id="tabs">
+  <button data-t="dash" aria-pressed="true">Overzicht</button>
+  <button data-t="req">Aanmeldingen<span class="cnt" id="cReq" hidden></span></button>
+  <button data-t="pl">Spelers</button>
+  <button data-t="ideas">Ideeën en bugs<span class="cnt" id="cIdeas" hidden></span></button>
+  <button data-t="pay">Betalingen</button>
+  <button data-t="cfg">Beheer</button>
+</nav>
+<main><div class="panel" id="panel"></div></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
+const ERAS=['Steentijd','Bronstijd','IJzertijd','Klassieke Oudheid','Middeleeuwen','Renaissance','Koloniale Tijd','Industriële Tijd','Moderne Tijd','Ruimtetijd'];
+const $=id=>document.getElementById(id);
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=c=>((+c||0)/100).toLocaleString('nl-NL',{style:'currency',currency:'EUR'});
+const n=v=>(+v||0).toLocaleString('nl-NL');
+function ago(ms){ if(!ms) return 'onbekend'; const m=Math.floor((Date.now()-ms)/60000); if(m<2) return 'zojuist'; if(m<60) return m+' min geleden'; if(m<1440) return Math.floor(m/60)+' uur geleden'; return Math.floor(m/1440)+' dagen geleden'; }
+const day=ms=>new Date(ms).toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+let toastT=0; function toast(m){ const t=$('toast'); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,3500); }
+function token(){ try{ return localStorage.getItem(TKEY)||''; }catch(e){ return TOKEN||''; } }
+let TOKEN='';
+async function rpc(fn,args){ const r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(Object.assign({p_token:TOKEN},args||{}))});
+  const txt=await r.text(); let d=null; try{ d=txt?JSON.parse(txt):null; }catch(e){}
+  if(!r.ok) throw new Error((d&&d.message)||'Verbinding mislukt ('+r.status+')'); return d; }
+
+let STATS=null, PLAYERS=[], IDEAS=[], PAYS=[], TAB='dash', FILTER={q:'',idea:'nieuw',kind:'alle'};
+async function login(code){ TOKEN=code; try{ STATS=await rpc('admin_stats'); }catch(e){ TOKEN=''; return e.message; }
+  $('loginView').hidden=true; $('app').hidden=false; $('logout').hidden=false; await loadAll(); return ''; }
+async function loadAll(){ try{ [STATS,PLAYERS,IDEAS]=await Promise.all([rpc('admin_stats'),rpc('admin_players2'),rpc('admin_ideas')]); }catch(e){ toast(e.message); return; }
+  const pend=PLAYERS.filter(p=>p.status==='pending').length, newI=IDEAS.filter(i=>i.status==='nieuw').length;
+  $('cReq').hidden=!pend; $('cReq').textContent=pend; $('cIdeas').hidden=!newI; $('cIdeas').textContent=newI; show(); }
+function show(){ for(const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-pressed',b.dataset.t===TAB);
+  const P=$('panel'); P.innerHTML=({dash:dashHtml,req:reqHtml,pl:plHtml,ideas:ideasHtml,pay:payHtml,cfg:cfgHtml})[TAB]();
+  if(TAB==='dash') drawCharts(); if(TAB==='pay') loadPays(); if(TAB==='pl'){ const q=$('q'); if(q){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); } } }
+
+// ---- overview
+function tile(k,v,d){ return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:''}</div>`; }
+function dashHtml(){ const s=STATS, days=s.days||[], week=days.slice(-7).reduce((a,d)=>a+ +d.n,0), prev=days.slice(0,7).reduce((a,d)=>a+ +d.n,0);
+  return `<h2>Overzicht</h2><div class="tiles">
+    ${tile('Spelers',n(s.total),`${n(s.pending)} wachten op toegang`)}
+    ${tile('Nieuw deze week',n(week),`vorige week ${n(prev)}`)}
+    ${tile('Actief vandaag',n(s.active1),`${n(s.active7)} deze week`)}
+    ${tile('Via uitnodiging',n(s.viaref),`beloning ${n(s.ref_gems)} edelstenen`)}
+    ${tile('Omzet (30 dagen)',eur(s.revenue30),`totaal ${eur(s.revenue)} · ${n(s.payers)} betalers`)}
+    ${tile('Open meldingen',n(+s.bugs_new + +s.ideas_new),`${n(s.bugs_new)} bugs · ${n(s.ideas_new)} ideeën`)}
+    ${tile('Gevechten (7 dagen)',n(s.battles7),'aanvallen, kampen en verkenners')}
+    ${tile('Spelversie','<span style="font-size:20px">'+esc(s.version||'–')+'</span>','spelers krijgen een melding bij een nieuwe versie')}
+  </div>
+  <div class="grid2"><div class="card"><h3>Aanmeldingen per dag (14 dagen)</h3><div class="chart" id="chDays"></div><p class="hint">Toegelaten spelers in totaal: ${n(days.length?days[days.length-1].a:0)}</p></div>
+  <div class="card"><h3>Spelers per tijdperk</h3><div class="chart" id="chEras"></div></div></div>`; }
+function drawCharts(){ const s=STATS;
+  // signups per day: single-series column chart
+  const D=s.days||[], W=560, H=200, L=28, B=26, T=10, max=Math.max(2,...D.map(d=>+d.n)), bw=(W-L-8)/Math.max(1,D.length);
+  const y=v=>H-B-(v/max)*(H-B-T); let g='';
+  for(let i=0;i<=max;i+=Math.max(1,Math.ceil(max/4))){ g+=`<line x1="${L}" x2="${W-4}" y1="${y(i)}" y2="${y(i)}" stroke="#ece2c9"/><text x="${L-6}" y="${y(i)+4}" text-anchor="end" font-size="11" fill="#8a7a63">${i}</text>`; }
+  D.forEach((d,i)=>{ const x=L+i*bw+2, h=Math.max(0,H-B-y(+d.n)), w=Math.max(4,bw-4);
+    if(+d.n) g+=`<path d="M${x},${H-B} v${-(h-4)} q0,-4 4,-4 h${w-8} q4,0 4,4 v${h-4} z" fill="var(--bar)"/>`;
+    g+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-B-T}" fill="transparent" data-tip="${esc(day(Date.parse(d.d)))}: ${d.n} aanmelding${+d.n===1?'':'en'}"/>`;
+    if(i%2===D.length%2 || D.length<8) g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="#8a7a63">${day(Date.parse(d.d))}</text>`; });
+  g+=`<line x1="${L}" x2="${W-4}" y1="${H-B}" y2="${H-B}" stroke="#b9a983"/>`;
+  $('chDays').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Aanmeldingen per dag">${g}</svg><div class="tip" hidden></div>`;
+  // era distribution: horizontal bars
+  const E=s.eras||[], m2=Math.max(1,...E.map(e=>+e.n)), rows=ERAS.map((nm,i)=>({nm,n:+((E.find(e=>+e.era===i)||{}).n||0)})).filter((r,i)=>r.n||i<=Math.max(0,...E.map(e=>+e.era)));
+  const W2=420, rh=22, H2=rows.length*rh+6, L2=128; let h='';
+  rows.forEach((r,i)=>{ const yy=i*rh+4, w=(W2-L2-34)*r.n/m2;
+    h+=`<text x="${L2-8}" y="${yy+14}" text-anchor="end" font-size="12" fill="#5b4a35">${r.nm}</text>`;
+    if(r.n) h+=`<path d="M${L2},${yy+3} h${Math.max(0,w-4)} q4,0 4,4 v8 q0,4 -4,4 h${-Math.max(0,w-4)} z" fill="var(--bar)"/>`;
+    h+=`<text x="${L2+w+6}" y="${yy+14}" font-size="12" fill="#2a1d10">${r.n}</text>`;
+    h+=`<rect x="0" y="${yy}" width="${W2}" height="${rh}" fill="transparent" data-tip="${r.nm}: ${r.n} speler${r.n===1?'':'s'}"/>`; });
+  $('chEras').innerHTML=`<svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Spelers per tijdperk">${h}</svg><div class="tip" hidden></div>`;
+  for(const id of ['chDays','chEras']){ const el=$(id), tip=el.querySelector('.tip');
+    el.onmousemove=e=>{ const t=e.target.closest('[data-tip]'); if(!t){ tip.hidden=true; return; } const r=el.getBoundingClientRect(); tip.textContent=t.dataset.tip; tip.style.left=(e.clientX-r.left)+'px'; tip.style.top=(e.clientY-r.top)+'px'; tip.hidden=false; };
+    el.onmouseleave=()=>tip.hidden=true; } }
+
+// ---- signups
+function reqHtml(){ const P=PLAYERS.filter(p=>p.status==='pending');
+  return `<h2>Aanmeldingen</h2><p class="hint">Nieuwe spelers kunnen pas spelen als jij ze toelaat. Ze krijgen dan een melding. Kwam iemand via een uitnodiging, dan krijgt de uitnodiger automatisch ${n(STATS.ref_gems)} edelstenen.</p>`
+    +(P.length?`<table><tr><th>Naam</th><th>Aangemeld</th><th>Uitgenodigd door</th><th></th></tr>${P.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td>${ago(p.created)}</td><td>${esc(p.ref||'–')}</td>
+      <td class="num"><button class="b" data-a="st" data-id="${p.id}" data-v="approved">Laat toe</button> <button class="b alt" data-a="st" data-id="${p.id}" data-v="blocked">Wijs af</button></td></tr>`).join('')}</table>`:'<p class="empty">Geen open aanmeldingen.</p>'); }
+
+// ---- players: search by name and give gems
+function plRows(){ const q=FILTER.q.trim().toLowerCase(), L=PLAYERS.filter(p=>p.status!=='pending' && (!q || p.name.toLowerCase().includes(q)));
+  if(!L.length) return `<tr><td colspan="6" class="empty">Geen speler gevonden${q?` met "${esc(FILTER.q)}"`:''}.</td></tr>`;
+  return L.map(p=>`<tr><td><b>${esc(p.name)}</b>${p.is_admin?' <span class="pill warn">spelleider</span>':''}${p.status==='blocked'?' <span class="pill bad">geblokkeerd</span>':''}<div class="hint">${p.ref?'via '+esc(p.ref)+' · ':''}${+p.refs?p.refs+' uitgenodigd · ':''}${+p.paid?'betaalde '+eur(p.paid):''}</div></td>
+    <td>${ERAS[+p.era]||ERAS[0]}${+p.pr?' · '+p.pr+' kronen':''}</td><td class="num">${n(p.gems)}</td><td>${ago(p.seen)}</td>
+    <td>${p.status==='approved'?`<form class="gift" data-id="${p.id}"><input type="number" min="1" max="100000" value="50" aria-label="Aantal edelstenen"><input class="note" maxlength="80" placeholder="Bericht (mag leeg)" aria-label="Bericht"><button class="b" type="submit">Geef</button></form>`:''}</td>
+    <td class="num">${p.is_admin?'':p.status==='approved'?`<button class="b alt" data-a="st" data-id="${p.id}" data-v="blocked">Blokkeer</button>`:`<button class="b alt" data-a="st" data-id="${p.id}" data-v="approved">Toelaten</button>`}</td></tr>`).join(''); }
+function plHtml(){ return `<h2>Spelers</h2><div class="row"><input type="search" id="q" placeholder="Zoek een speler op naam" value="${esc(FILTER.q)}" aria-label="Zoek speler"><span class="hint">${PLAYERS.filter(p=>p.status!=='pending').length} spelers</span></div>
+  <h3>Edelstenen aan iedereen</h3><form class="gift" data-id="all"><input type="number" min="1" max="100000" value="25" aria-label="Aantal edelstenen"><input class="note" maxlength="80" placeholder="Bericht, bijv. Bedankt voor het testen" aria-label="Bericht"><button class="b" type="submit">Geef aan alle spelers</button></form>
+  <h3>Alle spelers</h3><table><thead><tr><th>Naam</th><th>Tijdperk</th><th class="num">Edelstenen</th><th>Laatst gezien</th><th>Edelstenen geven</th><th></th></tr></thead><tbody id="plBody">${plRows()}</tbody></table>`; }
+
+// ---- ideas and bugs
+const IST={nieuw:['','Nieuw'],gepland:['warn','Gepland'],gebouwd:['on','Opgelost / gebouwd'],afgewezen:['bad','Afgewezen']};
+function ideasHtml(){ const L=IDEAS.filter(i=>(FILTER.idea==='alle'||i.status===FILTER.idea)&&(FILTER.kind==='alle'||i.kind===FILTER.kind));
+  const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option value="${o[0]}" ${o[0]===v?'selected':''}>${o[1]}</option>`).join('')}</select>`;
+  return `<h2>Ideeën en bugs</h2><div class="row">${sel('fKind',[['alle','Alles'],['bug','Alleen bugs'],['idee','Alleen ideeën']],FILTER.kind)} ${sel('fSt',[['nieuw','Nieuw'],['gepland','Gepland'],['gebouwd','Opgelost / gebouwd'],['afgewezen','Afgewezen'],['alle','Alle statussen']],FILTER.idea)}<span class="hint">${L.length} van ${IDEAS.length}</span></div>`
+    +(L.length?`<table><tr><th>Soort</th><th>Van</th><th>Melding</th><th>Status</th><th></th></tr>${L.map(i=>{ const st=IST[i.status]?i.status:'nieuw'; return `<tr><td>${i.kind==='bug'?'<span class="pill bad">Bug</span>':'<span class="pill">Idee</span>'}</td><td>${esc(i.name)}<div class="hint">${ago(i.at)}</div></td><td>${esc(i.text)}</td><td><span class="pill ${IST[st][0]}">${IST[st][1]}</span></td>
+      <td class="num">${['gepland','gebouwd','afgewezen'].filter(s=>s!==st).map(s=>`<button class="b alt" data-a="idea" data-id="${i.id}" data-v="${s}">${IST[s][1]}</button>`).join(' ')}</td></tr>`; }).join('')}</table>`:'<p class="empty">Niets in deze lijst.</p>'); }
+
+// ---- payments
+async function loadPays(){ try{ PAYS=await rpc('admin_payments'); }catch(e){ return; } const b=$('payBody'); if(b) b.innerHTML=payRows(); }
+function payRows(){ if(!PAYS.length) return '<tr><td colspan="5" class="empty">Nog geen betalingen.</td></tr>';
+  return PAYS.map(p=>`<tr><td>${new Date(p.at).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p.name||'onbekend')}</td><td>${esc(p.pack)}</td><td class="num">${n(p.gems)}</td><td class="num">${eur(p.cents)} ${p.status!=='paid'?'<span class="pill warn">controleren</span>':''}</td></tr>`).join(''); }
+function payHtml(){ const P=STATS.packs||[], rows=[...P,{},{},{}].slice(0,Math.max(4,P.length+1));
+  return `<h2>Betalingen</h2><div class="tiles">${tile('Omzet totaal',eur(STATS.revenue))}${tile('Laatste 30 dagen',eur(STATS.revenue30))}${tile('Betalende spelers',n(STATS.payers))}</div>
+  <h3>Pakketten in de winkel</h3><p class="hint">Maak per pakket een betaallink in Stripe en plak hem hier. Alleen pakketten met een link verschijnen in de winkel van het spel.</p>
+  <form id="packForm"><table class="packs"><tr><th>Naam</th><th>Edelstenen</th><th>Prijs (€)</th><th>Stripe betaallink (https://buy.stripe.com/…)</th><th>Link-ID (plink_…, mag leeg)</th></tr>
+  ${rows.map(k=>`<tr><td><input name="name" value="${esc(k.name||'')}" placeholder="Zak edelstenen"></td><td><input name="gems" type="number" min="1" value="${k.gems||''}"></td><td><input name="eur" type="number" step="0.01" min="0.5" value="${k.cents?(k.cents/100).toFixed(2):''}"></td><td><input name="url" value="${esc(k.url||'')}"></td><td><input name="link_id" value="${esc(k.link_id||'')}"></td></tr>`).join('')}
+  </table><p><button class="b" type="submit">Bewaar pakketten</button></p></form>
+  <h3>Betalingen</h3><table><thead><tr><th>Moment</th><th>Speler</th><th>Pakket</th><th class="num">Edelstenen</th><th class="num">Bedrag</th></tr></thead><tbody id="payBody">${payRows()}</tbody></table>
+  <h3>Stripe koppelen (eenmalig)</h3><ol class="steps">
+    <li>Maak een account op <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener">stripe.com</a> en zet iDEAL aan bij Instellingen → Betaalmethoden.</li>
+    <li>Maak per pakket een product met een vaste prijs en daarna een <b>betaallink</b> (Payment Link). Plak die link hierboven.</li>
+    <li>Ga in Stripe naar Ontwikkelaars → Webhooks → Eindpunt toevoegen. Vul in: <code>${SB_URL}/functions/v1/stripe-webhook</code> en kies de gebeurtenis <code>checkout.session.completed</code>.</li>
+    <li>Kopieer het ondertekeningsgeheim (begint met <code>whsec_</code>). Zet het in Supabase bij Edge Functions → Secrets als <code>STRIPE_WEBHOOK_SECRET</code>.</li>
+    <li>Test eerst in testmodus van Stripe met kaart 4242 4242 4242 4242. De betaling verschijnt hier en de speler krijgt zijn edelstenen.</li></ol>`; }
+
+// ---- settings
+function cfgHtml(){ const s=STATS, link=(s.site||location.href.replace(/admin\.html.*$/,''));
+  return `<h2>Beheer</h2>
+  <h3>Spelers uitnodigen</h3><p class="hint">Wie de link opent, meldt zich aan en wacht op jouw toelating.</p><div class="row"><a class="b" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Doe mee met mijn spel Van Vuursteen tot Vorst! Open '+link+' en meld je aan.')}">Deel via WhatsApp</a></div>
+  <h3>Beloning voor uitnodigen</h3><form id="refForm" class="row"><label for="refG">Edelstenen per toegelaten vriend</label><input id="refG" type="number" min="0" max="1000" value="${n(s.ref_gems)}"><button class="b" type="submit">Bewaar</button></form>
+  <h3>Mededeling in het spel</h3><form id="msgForm" class="row"><input id="msgT" maxlength="200" style="flex:1;min-width:260px" value="${esc(s.msg||'')}" placeholder="Leeg laten om te verwijderen"><button class="b" type="submit">Plaats</button></form>
+  <h3>Meldingen op je telefoon</h3><p class="hint">In de app ntfy abonneren op dit onderwerp geeft je een melding bij aanmeldingen, bugs, ideeën en betalingen:</p><p><code>${esc(s.topic)}</code> · <a href="https://ntfy.sh/${esc(s.topic)}" target="_blank" rel="noopener">open in browser</a></p>
+  <h3>Spel resetten</h3><p class="hint">Iedereen begint weer in de Steentijd. Spelers, edelstenen-cadeaus, ideeën en betalingen blijven staan.</p><button class="b bad" id="resetAll">Reset het spel voor iedereen</button>`; }
+
+// ---- events
+document.addEventListener('click', async e=>{ const t=e.target.closest('[data-t]'); if(t){ TAB=t.dataset.t; show(); return; }
+  const b=e.target.closest('[data-a]'); if(b){ b.disabled=true;
+    try{ if(b.dataset.a==='st'){ await rpc('admin_set_status',{p_player:b.dataset.id,p_status:b.dataset.v}); toast(b.dataset.v==='approved'?'Speler toegelaten':'Speler geblokkeerd'); }
+      if(b.dataset.a==='idea'){ await rpc('admin_idea',{p_id:+b.dataset.id,p_status:b.dataset.v}); toast('Status bijgewerkt'); }
+      await loadAll(); }catch(err){ toast(err.message); b.disabled=false; } return; }
+  if(e.target.id==='resetAll'){ const btn=e.target; if(btn.dataset.c!=='1'){ btn.dataset.c='1'; btn.textContent='Weet je het zeker? Klik nogmaals'; setTimeout(()=>{ btn.dataset.c=''; btn.textContent='Reset het spel voor iedereen'; },6000); return; }
+    try{ await rpc('admin_config',{p_reset:true}); toast('Het spel is gereset voor iedereen'); btn.dataset.c=''; btn.textContent='Reset het spel voor iedereen'; }catch(err){ toast(err.message); } }
+  if(e.target.id==='logout'){ TOKEN=''; $('app').hidden=true; $('logout').hidden=true; $('loginView').hidden=false; $('codeIn').value=''; } });
+document.addEventListener('input', e=>{ if(e.target.id==='q'){ FILTER.q=e.target.value; $('plBody').innerHTML=plRows(); } });
+document.addEventListener('change', e=>{ if(e.target.id==='fKind'){ FILTER.kind=e.target.value; show(); } if(e.target.id==='fSt'){ FILTER.idea=e.target.value; show(); } });
+document.addEventListener('submit', async e=>{ const f=e.target; e.preventDefault();
+  try{
+    if(f.id==='loginForm'){ const m=await login($('codeIn').value.trim().toLowerCase()); $('loginMsg').textContent=m; return; }
+    if(f.classList.contains('gift')){ const [num,note]=f.querySelectorAll('input'), g=Math.floor(+num.value); if(!(g>0)) return; const all=f.dataset.id==='all', who=all?'alle spelers':(PLAYERS.find(p=>p.id===f.dataset.id)||{}).name;
+      await rpc('admin_gift2',{p_player:all?null:f.dataset.id,p_gems:g,p_note:note.value.trim()||'Cadeau van de spelleider'}); toast(`${g} edelstenen gegeven aan ${who}`); note.value=''; return; }
+    if(f.id==='packForm'){ const packs=[...f.querySelectorAll('tr')].slice(1).map(tr=>{ const v=k=>tr.querySelector(`[name=${k}]`).value.trim(); return {name:v('name'),gems:Math.floor(+v('gems')),cents:Math.round(+v('eur')*100),url:v('url'),link_id:v('link_id')}; }).filter(k=>k.name&&k.gems>0&&k.cents>0);
+      if(packs.some(k=>k.url && !/^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com)\//.test(k.url))){ toast('Een betaallink moet beginnen met https://buy.stripe.com/'); return; }
+      const r=await rpc('admin_settings',{p_packs:packs,p_ref_gems:null}); STATS.packs=r.packs; toast('Pakketten bewaard'); show(); return; }
+    if(f.id==='refForm'){ const r=await rpc('admin_settings',{p_packs:null,p_ref_gems:Math.floor(+$('refG').value)}); STATS.ref_gems=r.ref_gems; toast('Beloning bewaard'); return; }
+    if(f.id==='msgForm'){ await rpc('admin_config',{p_msg:$('msgT').value.trim()}); toast('Mededeling geplaatst'); return; }
+  }catch(err){ toast(err.message); } });
+(async()=>{ const t=token(); if(t){ const m=await login(t); if(!m) return; } $('loginView').hidden=false; })();
+setInterval(()=>{ if(TOKEN && !document.hidden && (TAB==='dash'||TAB==='req')) loadAll(); },60000);
+</script>
+</body>
+</html>

@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Van Vuursteen tot Vorst</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3a2816">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vuursteen">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -172,6 +179,34 @@ form .buy{align-self:flex-start}
 #news .buy{align-self:flex-start}
 .updbar{position:absolute;left:8px;right:8px;bottom:60px;z-index:7;background:var(--gold);color:#1b140c;font-weight:800;border-radius:8px;padding:10px;font-size:15px}
 
+.worldbtn{position:absolute;right:8px;bottom:8px;background:rgba(24,33,27,.86);color:var(--bone);border:1px solid rgba(236,229,210,.3);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px;z-index:2}
+.rschip{top:auto;bottom:46px}
+.incbar{position:absolute;left:8px;right:8px;top:52px;background:#7a1f14;color:#fff3e4;border-radius:8px;padding:7px 12px;font-weight:800;font-size:14px;z-index:3;animation:alarm .7s ease-in-out infinite alternate}
+.viewbar .zoom{display:none;gap:4px}
+.viewbar .zoom .buy{min-width:34px;padding:6px 0}
+#heroForm{margin-top:4px}
+.hint.bad{color:var(--bad)}
+
+.timechip{position:absolute;right:8px;top:8px;background:rgba(24,33,27,.8);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;color:var(--bone)}
+.bubble{position:absolute;width:180px;background:#fffaf0;color:#2b2118;border-radius:10px;padding:7px 10px;font-size:13px;line-height:1.25;z-index:4;box-shadow:0 3px 10px rgba(0,0,0,.35);pointer-events:none}
+.movebtn{position:absolute;left:50%;transform:translateX(-50%);bottom:52px;z-index:3}
+canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
+.crestrow{display:flex;gap:12px;align-items:flex-start}
+.crestrow #crestPrev{flex:0 0 56px;min-height:56px}
+.crestform{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;flex:1}
+.crestform button{grid-column:1/-1}
+.tourlist{margin:6px 0 4px 22px;padding:0}
+.tourlist li{padding:2px 0;font-weight:700}
+.tourlist li.mine{color:#8a5a12}
+#giftForm{display:grid;gap:6px}
+.report{position:fixed;inset:0;z-index:60;background:rgba(20,14,8,.55);display:flex;align-items:center;justify-content:center;padding:18px}
+.report[hidden]{display:none}
+.report .card{color:#2a1d10;background:#f6eedb;border:3px solid #6b4a22;border-radius:14px;max-width:380px;width:100%;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.report h2{margin:0 0 4px;font-family:"Grenze Gotisch",serif;font-size:28px;color:#4a2e12}
+.report ul{margin:8px 0 14px 18px;padding:0}
+.report li{margin:4px 0}
+.report .hint{color:#6b5a42}
+
 </style>
 </head>
 <body>
@@ -190,8 +225,13 @@ form .buy{align-self:flex-start}
   <main id="field">
     <canvas id="map" role="img" aria-label="Je dorp. Tik op het land om te verzamelen, tik op het hoofdgebouw voor het volgende tijdperk."></canvas>
     <div class="chips" id="chips" role="group" aria-label="Kies wat je verzamelt"></div>
-    <div class="viewbar" id="viewBar" hidden><span id="viewText"></span><button class="buy" data-act="unview" data-arg="">Terug naar mijn dorp</button></div>
+    <div class="viewbar" id="viewBar" hidden><span id="viewText"></span><span class="zoom"><button class="buy" data-act="zoom" data-arg="0.8" aria-label="Uitzoomen">−</button><button class="buy" data-act="zoom" data-arg="1.25" aria-label="Inzoomen">+</button></span><button class="buy" data-act="unview" data-arg="">Terug naar mijn dorp</button></div>
     <div class="rschip num" id="rsChip" hidden></div>
+    <div class="timechip" id="timeChip"></div>
+    <div class="bubble" id="bubble" hidden></div>
+    <button class="buy movebtn" id="moveBtn" data-act="move" data-arg="" hidden>Klaar met verplaatsen</button>
+    <button class="worldbtn" id="worldBtn" data-act="world" data-arg="">Wereld</button>
+    <div class="incbar" id="incBar" hidden></div>
     <div class="replaybar" id="replayBar" hidden></div>
     <button class="tapbtn" id="tapBtn"><strong id="tapN"></strong><span id="tapL"></span></button>
     <div id="toast" role="status" hidden></div>
@@ -204,45 +244,30 @@ form .buy{align-self:flex-start}
       <div id="v-alfa" class="view" hidden>
         <h3 class="sub">Ranglijst</h3>
         <div class="list" id="rankList"></div>
+        <h3 class="sub">Weekendtoernooi</h3>
+        <div id="tourBox"></div>
+        <div id="crestBox"></div>
+        <div id="installBox"></div>
         <p class="hint" id="alfaState">Verbinden met de alfa…</p>
         <div class="row"><h3>Jouw herstelcode</h3><p>Hiermee speel je verder op een ander apparaat. Houd hem geheim: wie hem heeft, speelt als jou.</p><p class="num small" id="myCode">–</p><div class="act"><button class="buy" data-act="copyMy" data-arg="">Kopieer herstelcode</button></div></div>
         <h3 class="sub">Meldingen op je telefoon</h3>
         <div class="row"><p>Krijg een melding als iemand je dorp aanvalt of als je bent toegelaten. Installeer de gratis app ntfy (App Store of Google Play), tik op + en vul dit onderwerp in:</p><p class="code num" id="pushTopic">…</p><a class="link" id="pushLink" href="https://ntfy.sh/" target="_blank" rel="noopener">Of open je meldingen in de browser</a></div>
-        <h3 class="sub">Ideeënbus</h3>
-        <p class="hint">Stuur een idee voor het spel in. Alle spelers en de spelleider kunnen het lezen.</p>
+        <div id="refBox"></div>
+        <h3 class="sub">Ideeën en bugs</h3>
+        <p class="hint">Stuur een idee in of meld iets dat niet goed werkt. Ideeën zijn voor iedereen te lezen, bugs alleen voor jou en de spelleider.</p>
         <form id="ideaForm">
-          <label for="ideaText">Jouw idee</label>
+          <label for="ideaKind">Soort</label>
+          <select id="ideaKind"><option value="idee">Idee</option><option value="bug">Bug: er werkt iets niet</option></select>
+          <label for="ideaText">Wat wil je kwijt?</label>
           <textarea id="ideaText" maxlength="280" rows="2" placeholder="Bijvoorbeeld: een haven met handelsschepen"></textarea>
           <button class="buy" id="ideaSend" type="submit">Stuur idee in</button>
         </form>
         <p class="hint" id="ideaMsg" role="status"></p>
         <div class="list" id="ideaList"></div>
         <div id="admin" class="view" hidden>
-          <h3 class="sub">Spelleider: aanmeldingen</h3>
-          <div class="list" id="reqList"></div>
-          <h3 class="sub">Uitnodigen</h3>
-          <p class="hint">Stuur de link via WhatsApp. Wie hem opent, meldt zich aan met een naam en kan pas spelen als jij hem toelaat.</p>
-          <a class="buy linkbtn" id="inviteWa" href="https://wa.me/" target="_blank" rel="noopener">Uitnodiging delen via WhatsApp</a>
-          <h3 class="sub">Melding op je telefoon</h3>
-          <p class="hint">Installeer de gratis app ntfy (App Store of Google Play), kies "abonneren" en vul dit onderwerp in. Je krijgt dan een melding bij elke nieuwe aanmelding.</p>
-          <p class="code num" id="ntfyTopic">…</p>
-          <a class="link" id="ntfyLink" href="https://ntfy.sh/" target="_blank" rel="noopener">Of open de meldingen in je browser</a>
-          <h3 class="sub">Spel resetten</h3>
-          <div class="act"><button class="buy" id="resetMe" data-act="resetMe" data-arg="">Reset alleen mijn spel</button><button class="buy" id="resetAll" data-act="resetAll" data-arg="">Reset het spel voor iedereen</button></div>
-          <p class="hint">Resetten zet de voortgang terug naar de Steentijd. Ideeën, spelers en toegang blijven staan.</p>
-          <h3 class="sub">Mededeling</h3>
-          <form id="msgForm">
-            <label for="msgText">Mededeling aan alle spelers (leeg laten om te verwijderen)</label>
-            <input id="msgText" maxlength="200">
-            <button class="buy" type="submit">Plaats mededeling</button>
-          </form>
-          <h3 class="sub">Edelstenen uitdelen</h3>
-          <div class="act">
-            <label for="giftAmt">Aantal per cadeau</label>
-            <select id="giftAmt"><option>10</option><option selected>50</option><option>200</option></select>
-            <button class="buy" data-act="gift" data-arg="all">Geef aan alle spelers</button>
-          </div>
-          <div class="list" id="playerList"></div>
+          <h3 class="sub">Spelleider</h3>
+          <div class="row"><p id="adminInfo">Laden…</p><p>Aanmeldingen, spelers zoeken, edelstenen uitdelen, ideeën en bugs, betalingen en resetten doe je in het spelleidersportaal.</p>
+          <div class="act"><a class="buy linkbtn" href="admin.html" target="_blank" rel="noopener">Open het spelleidersportaal</a></div></div>
         </div>
       </div>
     </div>
@@ -337,6 +362,7 @@ const GEMUP = [
   {id:'gb',  name:'Bouwmeester',   desc:'Bouwen en upgraden wordt blijvend 8% goedkoper per niveau.', base:20, max:5},
   {id:'gk',  name:'Rentmeester',   desc:'Het onderhoud van je stad wordt blijvend 10% lager per niveau.', base:20, max:5},
   {id:'gs',  name:'Molenaar',      desc:'Blijvend +50% bijproducten (van appels tot stroom) per niveau.', base:20, max:4},
+  {id:'ob',  name:'Opzichter',     desc:'Een bouwmeester die zelf het goedkoopste gebouw bouwt zodra het kan. Hij houdt altijd een kwart van je voorraad achter. Elk niveau bouwt hij vaker.', base:40, max:3},
 ];
 const GEMUSE = [
   {id:'warp',  name:'Tijdsprong',     desc:'Krijg direct 1 uur productie.', cost:10},
@@ -354,10 +380,10 @@ const SLOTS = TILES.filter(t => t.ring>0 && !(t.i===MID && t.j>MID) && !(t.i===M
 const SLOTKEY = {}; SLOTS.forEach(t => SLOTKEY['t'+t.idx]=1);
 
 function newState(now){ const res={}; for(const k of RES) res[k]=0;
-  return {v:V,res,b:{},lv:{},map:{},era:0,tool:0,gems:0,gp:0,gc:0,auto:0,go:0,gb:0,gs:0,gk:0,wall:0,gate:0,guards:0,towers:0,rn:0,raid:null,
+  return {v:V,res,b:{},lv:{},map:{},era:0,tool:0,gems:0,gp:0,gc:0,auto:0,go:0,gb:0,gs:0,gk:0,wall:0,gate:0,guards:0,u:{arc:0,cav:0,sie:0},hero:null,towers:0,deco:{},rn:0,raid:null,
     boostUntil:0,feastUntil:0,partyUntil:0,peaceUntil:0,mercUntil:0,raidAt:0,lastRaid:null,wins:0,flag:0,flags:[0],claimed:[],sel:'food',tech:{},rs:null,pr:0,last:now}; }
 function hydrate(saved,now){ const s=Object.assign(newState(now),saved); s.res=Object.assign(newState(now).res,saved.res||{});
-  for(const k of ['b','lv','map','tech']) s[k]=Object.assign({},saved[k]||{}); s.rs=saved.rs?Object.assign({},saved.rs):null; s.flags=(saved.flags||[0]).slice(); s.claimed=(saved.claimed||[]).slice(-300);
+  for(const k of ['b','lv','map','tech']) s[k]=Object.assign({},saved[k]||{}); s.u=Object.assign({arc:0,cav:0,sie:0},saved.u||{}); s.deco=Object.assign({},saved.deco||{}); s.hero=saved.hero?Object.assign({},saved.hero):null; s.rs=saved.rs?Object.assign({},saved.rs):null; s.flags=(saved.flags||[0]).slice(); s.claimed=(saved.claimed||[]).slice(-300);
   s.lastRaid=saved.lastRaid?JSON.parse(JSON.stringify(saved.lastRaid)):null; s.raid=saved.raid?JSON.parse(JSON.stringify(saved.raid)):null; if(!ERAS[s.era]) s.era=0; if(RES_ERA[s.sel]===undefined) s.sel='food'; return s; }
 function count(s,id){ return s.b[id]||0; }
 function lvl(s,id){ return s.b[id] ? (s.lv[id]||1) : 0; }
@@ -365,20 +391,21 @@ const MILES = [10,25,50,75,100,150,200,300];
 function mile(n){ let k=0; for(const m of MILES) if(n>=m) k++; return Math.pow(1.5,k); }
 function toMile(n){ for(const m of MILES) if(n<m) return m-n; return 0; }
 function eraMult(s){ return Math.pow(EM,s.era); }
-function mult(s,now){ return eraMult(s)*prMult(s)*(1+.25*s.gp)*(now<s.boostUntil?2:1)*(now<s.feastUntil?1.5:1)*(now<s.partyUntil?3:1); }
+function mult(s,now){ return eraMult(s)*prMult(s)*decoMult(s)*(1+.25*s.gp)*(now<s.boostUntil?2:1)*(now<s.feastUntil?1.5:1)*(now<s.partyUntil?3:1); }
 function gross(s,now){ const r={}; for(const k of RES) r[k]=0; const m=mult(s,now), sm=m*(1+.5*s.gs);
   for(const d of BUILD){ const n=s.b[d.id]||0; if(!n) continue; const L=s.lv[d.id]||1;
     const mi=mile(n);
-    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*(1+tb(s,k));
+    const nb=NIGHT_IDS[d.id]&&isNight(now)?1.25:1;
+    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*nb*(1+tb(s,k)+seasonFx(now,k));
     for(const sd of d.side) if(L>=sd.l && (!sd.e || s.era>=sd.e)) r[sd.r]+=sd.q*n*LVL[L-sd.l]*sm*mi; }
   return r; }
 function buildings(s){ let n=0; for(const k in s.b) n+=s.b[k]; return n; }
 // Upkeep: the share of each resource the town itself uses up.
 function upkeep(s){ const nb=buildings(s), f=(1-.1*(s.gk||0))*(1-tb(s,'upkeep')), u={};
-  u.food=Math.min(.3,.03+.0002*nb+.002*s.guards)*f;
+  u.food=Math.min(.3,.03+.0002*nb+.002*armySize(s))*f;
   if(s.era<7) u.wood=Math.min(.15,.0002*nb)*f;
   if(s.wall) u.stone=Math.min(.15,.012*s.wall+.008*s.gate+.004*s.towers)*f;
-  if(s.era>=3 && s.guards) u.gold=Math.min(.15,.0015*s.guards)*f;
+  if(s.era>=3 && armySize(s)) u.gold=Math.min(.15,.0015*armySize(s))*f;
   if(s.era>=7) u.coal=Math.min(.2,.05+.0002*nb)*f;
   if(s.era>=8) u.power=Math.min(.25,.08+.0002*nb)*f;
   return u; }
@@ -406,25 +433,60 @@ function nextWall(s){ const w=WALL[s.wall+1]; return w && w.era<=s.era ? w : nul
 function buyWall(s){ const w=nextWall(s); if(!w || !pay(s,scaled(w.cost,disc(s)))) return false; s.wall++; return true; }
 function nextGate(s){ const g=GATE[s.gate+1]; return g && g.era<=s.era && s.wall>s.gate ? g : null; }
 function buyGate(s){ const g=nextGate(s); if(!g || !pay(s,scaled(g.cost,disc(s)))) return false; s.gate++; return true; }
-function guardCap(s){ return 5*count(s,'barracks'); }
-function guardBase(s){ return s.era>=8 ? {meat:30,steel:4,oil:6} : s.era>=7 ? {meat:30,steel:3,coal:10} : s.era>=6 ? {meat:30,iron:6,gold:40} : {meat:30,hides:12,iron:2}; }
-function guardCost(s){ return scaled(guardBase(s), Math.pow(1.1,s.guards)); }
-function recruit(s){ if(s.guards>=guardCap(s) || !pay(s,guardCost(s))) return false; s.guards++; return true; }
+// ---- army: four unit types. Infantry beats cavalry, cavalry beats archers and siege, archers beat infantry; siege breaks walls.
+const UNITS = [
+  {id:'inf', era:2, a:3,   d:3.5, beats:['cav'],       names:{2:'Speerdragers',4:'Zwaardvechters',6:'Musketiers',7:'Infanterie',9:'Mariniers'}},
+  {id:'arc', era:2, a:3.5, d:3,   beats:['inf'],       names:{2:'Boogschutters',4:'Kruisboogschutters',6:'Scherpschutters',8:'Mitrailleurs',9:'Laserschutters'}},
+  {id:'cav', era:3, a:5,   d:3,   beats:['arc','sie'], names:{3:'Ruiters',4:'Ridders',6:'Dragonders',7:'Pantserwagens',8:'Tanks',9:'Zweeftanks'}},
+  {id:'sie', era:4, a:2,   d:1,   beats:[],            names:{4:'Katapulten',5:'Kanonnen',7:'Veldgeschut',8:'Artillerie',9:'Plasmakanonnen'}},
+];
+const UNITBY = {}; UNITS.forEach(x => UNITBY[x.id]=x);
+function unitName(x,era){ let n=x.names[x.era]; for(const e in x.names) if(+e<=era) n=x.names[e]; return n; }
+function ucount(s,id){ return id==='inf' ? s.guards : (s.u&&s.u[id])||0; }
+function uset(s,id,v){ if(id==='inf') s.guards=v; else s.u[id]=v; }
+function armySize(s){ return s.guards+(s.u?s.u.arc+s.u.cav+s.u.sie:0); }
+function guardCap(s){ return 8*count(s,'barracks'); }
+function unitBase(s,x){ const b = s.era>=8 ? {meat:30,steel:4,oil:6} : s.era>=7 ? {meat:30,steel:3,coal:10} : s.era>=6 ? {meat:30,iron:6,gold:40} : {meat:30,hides:12,iron:2};
+  const k = x.id==='arc' ? {planks:12} : x.id==='cav' ? {apples:40,meat:20} : x.id==='sie' ? {planks:40,stone:400} : {}; const o={};
+  for(const r in b) o[r]=b[r]; for(const r in k) o[r]=(o[r]||0)+k[r]*(1+Math.max(0,s.era-x.era)); return o; }
+function unitCost(s,x){ return scaled(unitBase(s,x), Math.pow(1.1,ucount(s,x.id))); }
+function train(s,x){ if(x.era>s.era || armySize(s)>=guardCap(s) || !pay(s,unitCost(s,x))) return false; uset(s,x.id,ucount(s,x.id)+1); return true; }
+function guardBase(s){ return unitBase(s,UNITBY.inf); }
+function guardCost(s){ return unitCost(s,UNITBY.inf); }
+function recruit(s){ return train(s,UNITBY.inf); }
+// the hero: one per player, gains experience in every fight
+function heroLv(s){ return s.hero ? s.hero.lv : 0; }
+function heroMult(s){ return 1+.06*heroLv(s); }
+function heroXp(s,n){ if(!s.hero) return false; s.hero.xp+=n; let up=false; while(s.hero.xp>=heroNeed(s.hero.lv) && s.hero.lv<50){ s.hero.xp-=heroNeed(s.hero.lv); s.hero.lv++; up=true; } return up; }
+function heroNeed(lv){ return 60+40*lv; }
+function hireHero(s,name){ if(s.hero || s.era<2) return false; s.hero={name:String(name||'').trim().slice(0,20)||'Aldo',lv:1,xp:0}; return true; }
+// per-type strength, everything included except counters: what the server needs to settle a fight between players
+function unitMult(s){ return (1+.25*Math.max(0,lvl(s,'barracks')-1))*defMult(s)*heroMult(s); }
+function army(s,now){ const m=unitMult(s), merc=now<s.mercUntil?2:1, ka=(1+tb(s,'atk'))*merc, kd=(1+tb(s,'def'))*merc, o={};
+  for(const x of UNITS){ const n=ucount(s,x.id); o[x.id]=[Math.round(n*x.a*m*ka), Math.round(n*x.d*m*kd)]; }
+  o.w=Math.round((s.wall*20+s.gate*15+s.towers*TOWER_DEF)*defMult(s)*(1+tb(s,'def'))*merc); o.h=heroLv(s); return o; }
 function towerCap(s){ return s.wall ? 2+2*s.wall : 0; }
 function towerCost(s){ return scaled(s.era>=7 ? {stone:1500,steel:40} : {stone:1500,planks:60}, Math.pow(1.5,s.towers)*disc(s)); }
 function buyTower(s){ if(s.towers>=towerCap(s) || !pay(s,towerCost(s))) return false; s.towers++; return true; }
 function defMult(s){ return Math.pow(1.3,Math.max(0,s.era-2)); }
-function guardPower(s){ return 3*(1+.25*Math.max(0,lvl(s,'barracks')-1)); }
-function defence(s,now){ const d=(s.wall*20+s.gate*15+s.towers*TOWER_DEF+s.guards*guardPower(s))*defMult(s)*(1+tb(s,'def')); return Math.round(d*(now<s.mercUntil?2:1)); }
+function guardPower(s){ return 3.5*(1+.25*Math.max(0,lvl(s,'barracks')-1))*heroMult(s); }
+function defence(s,now){ const a=army(s,now); let d=a.w; for(const x of UNITS) d+=a[x.id][1]; return d; }
 // attack strength against other players: only guards march out
-function attackPower(s,now){ return Math.round(s.guards*guardPower(s)*defMult(s)*(1+tb(s,'atk'))*(now<s.mercUntil?2:1)); }
+function attackPower(s,now){ const a=army(s,now); let t=0; for(const x of UNITS) t+=a[x.id][0]; return t; }
+// fight with counters, the same formula the server uses (sie breaks walls, cavalry at home blunts siege)
+function battle(A,D){ const sh=(o,k)=>{ let t=0; for(const x of UNITS) t+=o[x.id][k]; const r={}; for(const x of UNITS) r[x.id]=t?o[x.id][k]/t:0; return r; };
+  const dS=sh(D,1), aS=sh(A,0), f=(x,other)=>{ let v=1; for(const b of x.beats) v+=.4*(other[b]||0); for(const y of UNITS) if(y.beats.indexOf(x.id)>=0) v-=.4*(other[y.id]||0); return Math.max(.3,v); };
+  let atk=0, dun=0; for(const x of UNITS){ atk+=A[x.id][0]*f(x,dS); dun+=D[x.id][1]*f(x,aS); }
+  const dtot=D.inf[1]+D.arc[1]+D.cav[1]+D.sie[1], breach=Math.min(.8, A.sie[0]*4/Math.max(1,D.w))*(1-Math.min(.6, dtot?D.cav[1]/dtot:0));
+  return {atk:Math.round(atk), def:Math.round(dun+D.w*(1-breach)), breach}; }
 function raidStr(s){ return Math.round(RAID[s.era]*(1+.1*Math.min(s.rn||0,12))); }
 function callRaid(s,now){ if(s.era<2 || s.raid || now<s.peaceUntil || (s.lastRaid && now-s.lastRaid.at<120000)) return false; s.raidAt=now+8000; return true; }
 function raidTick(s,now,rand){ if(s.era<2) return null;
   if(s.raid){ if(now<s.raid.end) return null;
     const r=s.raid, def=defence(s,now), ev={type:'end',won:def>=r.str,str:r.str,def,at:now}; s.raid=null; s.rn=(s.rn||0)+1;
     if(ev.won){ ev.gold=Math.max(50,Math.round(rates(s,now).gold*120)); s.res.gold+=ev.gold; s.wins++; if(s.wins%3===0){ s.gems+=1; ev.gem=1; } }
-    else { ev.lost={}; for(const k of MAIN){ const l=Math.floor(s.res[k]*.15); s.res[k]-=l; ev.lost[k]=l; } ev.guards=Math.ceil(s.guards*.15); s.guards-=ev.guards; }
+    else { ev.lost={}; for(const k of MAIN){ const l=Math.floor(s.res[k]*.15); s.res[k]-=l; ev.lost[k]=l; } ev.guards=Math.ceil(s.guards*.15); s.guards-=ev.guards; for(const k of ['arc','cav','sie']) s.u[k]-=Math.ceil(s.u[k]*.15); }
+    heroXp(s, ev.won?20:8);
     s.lastRaid=ev; s.raidAt=now+RAID_MS*(.85+.3*rand()); return ev; }
   if(!s.raidAt){ s.raidAt=now+RAID_MS; return null; } if(now<s.raidAt) return null;
   if(now<s.peaceUntil){ s.raidAt=now+RAID_MS*(.85+.3*rand()); return null; }
@@ -446,7 +508,7 @@ function advance(s,now){ if(!canAdvance(s)) return false; pay(s,ERAS[s.era+1].co
 
 function shown(s,d){ const n=s.b[d.id]||0; return n ? Math.min(4,Math.ceil(n/6)) : 0; }
 function syncMap(s){ for(const k in s.map) if(!SLOTKEY[k]) delete s.map[k];
-  const R=RAD[s.era], free=SLOTS.filter(t => t.ring<=R && !s.map['t'+t.idx]), cnt={};
+  const R=RAD[s.era], free=SLOTS.filter(t => t.ring<=R && !s.map['t'+t.idx] && !s.deco['t'+t.idx]), cnt={};
   for(const k in s.map) cnt[s.map[k]]=(cnt[s.map[k]]||0)+1;
   for(const d of BUILD){ if(!shown(s,d) || cnt[d.id]) continue; const t=free.shift();
     if(t){ s.map['t'+t.idx]=d.id; cnt[d.id]=1; continue; }
@@ -515,8 +577,43 @@ const PR_ERA = 6;
 function prMult(s){ return 1+.5*(s.pr||0); }
 function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
 function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
-  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','flag','flags','claimed','resetAt','pr']) keep[k]=s[k];
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr']) keep[k]=s[k];
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
+
+// ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
+const OB_EVERY=[0,40,20,10];
+function overseerPick(s){ let best=null, bc=Infinity;
+  for(const d of BUILD){ if(d.era>s.era) continue; const c=buildCost(s,d); let ok=true, sum=0;
+    for(const k in c){ if(c[k] > s.res[k]*.75){ ok=false; break; } sum+=c[k]; }
+    if(ok && sum<bc){ bc=sum; best=d; } }
+  return best; }
+function overseer(s,now){ if(!s.ob || s.obOff) return null; if(now-(s.obT||0) < OB_EVERY[Math.min(3,s.ob)]*1000) return null; s.obT=now;
+  const d=overseerPick(s); return d && buy(s,d) ? d : null; }
+
+// ---- day and night (the player's own clock) and the seasons (the calendar)
+const NIGHT_IDS={smithy:1,factory:1,academy:1,office:1,mill:1};
+function dayPart(now){ if(!now) return 'dag'; const h=new Date(now).getHours()+new Date(now).getMinutes()/60;
+  return h<5.5||h>=21.5 ? 'nacht' : h<7.5 ? 'ochtend' : h>=19.5 ? 'avond' : 'dag'; }
+function isNight(now){ return dayPart(now)==='nacht'; }
+function darkness(now){ if(!now) return 0; const h=new Date(now).getHours()+new Date(now).getMinutes()/60;
+  if(h>=22||h<5) return 1; if(h>=19.5) return (h-19.5)/2.5; if(h<7.5) return 1-(h-5)/2.5; return 0; }
+const SEASONS={winter:{name:'Winter',fx:{food:-.15},desc:'Sneeuw: 15% minder voedsel'},lente:{name:'Lente',fx:{wood:.1},desc:'Alles groeit: +10% hout'},
+  zomer:{name:'Zomer',fx:{gold:.1},desc:'Druk op de markt: +10% goud'},herfst:{name:'Herfst',fx:{food:.2},desc:'Oogstfeest: +20% voedsel'}};
+function season(now){ const m=new Date(now||Date.now()).getMonth(); return m===11||m<2 ? 'winter' : m<5 ? 'lente' : m<8 ? 'zomer' : 'herfst'; }
+function seasonFx(now,k){ if(!now) return 0; return SEASONS[season(now)].fx[k]||0; }
+// ---- decorations: placed on free tiles, each gives a small lasting bonus
+const DECOS=[{id:'statue',name:'Standbeeld',spr:'statue',era:1,cost:{stone:400,gold:0,food:300}},{id:'fountain',name:'Fontein',spr:'fountain',era:3,cost:{stone:20000,gold:2000}},
+  {id:'well',name:'Waterput',spr:'well',era:2,cost:{stone:3000,wood:2000}},{id:'banner',name:'Vaandel',spr:'banner',era:4,cost:{gold:20000,hides:400}},{id:'lamp',name:'Lantaarn',spr:'lightpost',era:7,cost:{steel:2000,gold:5e8}}];
+const DECOBY={}; DECOS.forEach(d => DECOBY[d.id]=d); const DECO_MAX=10;
+function decoCount(s){ return Object.keys(s.deco||{}).length; }
+function decoMult(s){ return 1+.02*decoCount(s); }
+function decoCost(s,d){ const e=ERAS[Math.min(s.era+1,ERAS.length-1)].cost, c={}; for(const k of MAIN) if(e[k]) c[k]=Math.ceil(e[k]*.004*Math.pow(1.4,decoCount(s))); return Object.keys(c).length?c:scaled(d.cost,Math.pow(1.4,decoCount(s))); }
+function placeDeco(s,d){ if(d.era>s.era || decoCount(s)>=DECO_MAX) return false; const R=RAD[s.era], t=SLOTS.find(t => t.ring<=R && !s.map['t'+t.idx] && !s.deco['t'+t.idx]);
+  if(!t || !pay(s,decoCost(s,d))) return false; s.deco['t'+t.idx]=d.id; return true; }
+// rearranging: swap what stands on two tiles of the village
+function swapTiles(s,a,b){ if(a===b) return false; const ta=TILES.find(t => 't'+t.idx===a), tbb=TILES.find(t => 't'+t.idx===b), R=RAD[s.era];
+  if(!ta || !tbb || !SLOTKEY[a] || !SLOTKEY[b] || ta.ring>R || tbb.ring>R) return false;
+  for(const k of ['map','deco']){ const x=s[k][a], y=s[k][b]; delete s[k][a]; delete s[k][b]; if(y!==undefined) s[k][a]=y; if(x!==undefined) s[k][b]=x; } return true; }
 //LOGIC-END
 
 // Sprites: "Hexagon Pack" by Kenney (kenney.nl), Creative Commons Zero (CC0), re-rendered from the pack's vector file.
@@ -533,6 +630,7 @@ function hitTile(wx,wy){ const a=wx/(TW/2), b=wy/(TH/2); return [Math.round((a+b
 function h2(i,j){ let x=(Math.imul(i,374761393)+Math.imul(j,668265263))>>>0; x=Math.imul(x^(x>>>13),1274126177)>>>0; return ((x^(x>>>16))>>>0)/4294967296; }
 function poly(c,col,pts){ c.fillStyle=col; c.beginPath(); c.moveTo(pts[0],pts[1]); for(let i=2;i<pts.length;i+=2) c.lineTo(pts[i],pts[i+1]); c.closePath(); c.fill(); }
 function dot(c,col,x,y,r){ c.fillStyle=col; c.beginPath(); c.arc(x,y,r,0,6.2832); c.fill(); }
+function diamondPath(c,x,y,r){ const w=TW/2*r,d=TH/2*r; c.beginPath(); c.moveTo(x,y-d); c.lineTo(x+w,y); c.lineTo(x,y+d); c.lineTo(x-w,y); c.closePath(); }
 function diamond(c,col,x,y,r){ const w=TW/2*r,d=TH/2*r; poly(c,col,[x,y-d, x+w,y, x,y+d, x-w,y]); }
 // spr(): draw a sprite with its bottom-centre at (x,y); returns its drawn height
 function spr(c,name,x,y,k){ const a=ATLAS[name]; if(!a||!IMG) return 0; const w=a[2]*K*k, h=a[3]*K*k; c.drawImage(IMG,a[0],a[1],a[2],a[3],x-w/2,y-h,w,h); return h; }
@@ -572,6 +670,12 @@ function person(c,x,y,o){ const era=o.era||0, lg=o.walk?Math.sin(o.walk):0, bob=
   c.save(); if(o.alpha!==undefined) c.globalAlpha=Math.max(0,o.alpha);
   c.fillStyle='rgba(15,35,20,.28)'; c.beginPath(); c.ellipse(x,y,6.5*sc,2.6*sc,0,0,6.2832); c.fill();
   c.translate(x,y); c.scale(sc,sc); if(o.flip) c.scale(-1,1); if(o.down){ c.rotate(1.45); c.translate(-2,-2); } else c.translate(0,-bob);
+  if(o.unit==='sie'){ siege(c,era,o); c.restore(); return; }
+  if(o.cape){ c.fillStyle=o.cape; c.beginPath(); c.moveTo(-4.6,-13); c.lineTo(4.6,-13); c.lineTo(6.5,-1.5); c.lineTo(-6.5,-1.5); c.closePath(); c.fill(); }
+  if(o.unit==='cav'){ const hc= era>=7 ? null : '#7a5230';
+    if(hc){ c.fillStyle=OUTL; rr(c,-10.5,-9.5,21,8.5,4); c.fillStyle=hc; rr(c,-9.6,-8.6,19.2,6.8,3.4); c.fillStyle=OUTL; for(const lx of [-8,-4,4,8]) c.fillRect(lx-1,-2.5,2,4.5+(Math.sin((o.walk||0)+lx)>0?-1:0));
+      c.fillStyle=OUTL; rr(c,7.4,-14,5.4,7,2); c.fillStyle=hc; rr(c,8,-13.4,4.2,5.8,1.6); c.translate(0,-7); }
+    else { c.fillStyle=OUTL; rr(c,-12,-10,24,9,2); c.fillStyle=era>=9?'#e6edf0':'#55663f'; rr(c,-11,-9,22,7,1.6); c.fillStyle=OUTL; c.fillRect(-11,-2,22,2.6); c.fillStyle='#3d4a2d'; c.fillRect(-1,-12.5,13,2); c.translate(0,-8); } }
   c.fillStyle=OUTL; c.fillRect(-3.4,-6,3,6.4-(lg>0?1.6:0)); c.fillRect(.4,-6,3,6.4-(lg<0?1.6:0));
   c.fillStyle=o.legs; c.fillRect(-2.7,-5.4,1.7,5.2-(lg>0?1.6:0)); c.fillRect(1.1,-5.4,1.7,5.2-(lg<0?1.6:0));
   c.fillStyle=OUTL; rr(c,-4.7,-14,9.4,9.6,2.2); c.fillStyle=o.body; rr(c,-3.7,-13,7.4,7.6,1.6);
@@ -592,11 +696,20 @@ function person(c,x,y,o){ const era=o.era||0, lg=o.walk?Math.sin(o.walk):0, bob=
   else if(tl==='club'){ c.strokeStyle='#5a3d22'; c.lineWidth=2.6; c.lineCap='round'; c.beginPath(); c.moveTo(4,-8); c.lineTo(8,-16); c.stroke(); }
   else if(tl==='sword'){ c.strokeStyle='#d8dde0'; c.lineWidth=1.8; c.beginPath(); c.moveTo(4.5,-8); c.lineTo(9,-17); c.stroke(); c.strokeStyle=OUTL; c.lineWidth=1.4; c.beginPath(); c.moveTo(3,-9.5); c.lineTo(6.5,-7.5); c.stroke(); }
   else if(tl==='gun'){ c.strokeStyle=OUTL; c.lineWidth=2.2; c.beginPath(); c.moveTo(2,-9.5); c.lineTo(11,-11.5); c.stroke(); }
+  else if(tl==='bow'){ c.strokeStyle='#5a3d22'; c.lineWidth=1.5; c.beginPath(); c.arc(5,-10,6,-1.2,1.2); c.stroke(); c.strokeStyle='#e8e0c8'; c.lineWidth=.6; c.beginPath(); c.moveTo(5+6*Math.cos(-1.2),-10+6*Math.sin(-1.2)); c.lineTo(5+6*Math.cos(1.2),-10+6*Math.sin(1.2)); c.stroke(); }
   else if(tl==='ray'){ c.strokeStyle='#35c8e8'; c.lineWidth=2.2; c.beginPath(); c.moveTo(2,-9.5); c.lineTo(10,-11); c.stroke(); }
+  if(o.crown){ poly(c,OUTL,[-3.8,-19.4, 3.8,-19.4, 4.4,-24, 2,-21.6, 0,-25, -2,-21.6, -4.4,-24]); poly(c,'#f0c54e',[-3,-20, 3,-20, 3.4,-23, 1.8,-21.2, 0,-23.8, -1.8,-21.2, -3.4,-23]); }
   if(o.carry){ c.fillStyle=OUTL; c.fillRect(-5.4,-24.6,10.8,8.6); c.fillStyle=RESCOL[o.carry]||'#fff'; c.fillRect(-4.2,-23.4,8.4,6.2); }
   c.restore(); }
 const weapon=(era,guard)=> era>=9?'ray':era>=6?'gun':guard?'spear':era>=2?'sword':'club';
 function villager(s,o){ const v=VIL[s.era]||VIL[0]; return Object.assign({era:s.era,body:v.b||(FLAGS[s.flag]||FLAGS[0]).col,legs:v.l,hat:v.h},o); }
+function siege(c,era,o){ const w=o.walk?Math.sin(o.walk)*.4:0;
+  if(era<5){ c.fillStyle=OUTL; c.fillRect(-11,-6,22,4); c.fillStyle='#8a5a2e'; c.fillRect(-10,-5.2,20,2.4); c.strokeStyle='#6b4520'; c.lineWidth=2.2; c.beginPath(); c.moveTo(-6,-4); c.lineTo(6+w*4,-17); c.stroke(); dot(c,'#5a5f63',7+w*4,-18,2.6); }
+  else { c.fillStyle=OUTL; rr(c,-4,-13,17,5.5,2.5); c.fillStyle=era>=9?'#35c8e8':era>=8?'#55663f':'#3a3532'; rr(c,-3.2,-12.2,15.4,3.9,1.8); }
+  for(const wx of [-6,6]){ dot(c,OUTL,wx,-2.5,4.2); dot(c,'#a0703c',wx,-2.5,3.2); dot(c,OUTL,wx,-2.5,1); } }
+const UNIT_TOOL={inf:null,arc:'bow',cav:null,sie:null};
+// which unit type the k-th visible soldier is, in proportion to the army
+function unitOf(s,k,n){ const tot=armySize(s); if(!tot) return 'inf'; let acc=0; const pos=(k+.5)/n*tot; for(const x of UNITS){ acc+=ucount(s,x.id); if(pos<acc) return x.id; } return 'inf'; }
 function guardLook(s,o){ return Object.assign({sc:1.45,era:s.era,body:s.era>=8?'#4b5d3a':'#59677a',legs:'#2e3440',hat:s.era>=9?'visor':'helm',shield:s.era<6?(FLAGS[s.flag]||FLAGS[0]).col:null,tool:weapon(s.era,true)},o); }
 function raiderLook(s,o){ return Object.assign({sc:1.45,era:s.era,body:'#3b2f33',legs:'#231c1f',hat:'mask',band:'#b3261e',tool:weapon(s.era,false)},o); }
 
@@ -669,7 +782,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
   // villagers
   for(const w of WORKERS){ const [x,y]=P(w.i,w.j); put(w.i,w.j,()=>person(c,x,y,villager(s,{flip:w.flip,walk:w.moving?w.walk:0,carry:(w.ph===2||(w.ph===3&&w.wait>.7))?w.res:null}))); }
   // defence and raid actors
-  const gateI=MID, lineJ = s.wall ? hi+.75 : MID+1.5, shown=Math.min(s.guards,8), el=raid?raid.el:0, AP=9, dur=raid?raid.dur:1;
+  const gateI=MID, lineJ = s.wall ? hi+.75 : MID+1.5, shown=Math.min(armySize(s),8), el=raid?raid.el:0, AP=9, dur=raid?raid.dur:1;
   const f = raid ? Math.max(0,Math.min(1,(el-AP)/(dur-AP))) : 0, ratio = (raid||after) ? Math.min(1,(raid||after).def/Math.max(1,(raid||after).str)) : 1;
   const idle=[[MID-.62,hi+.5],[MID+.62,hi+.5],[lo+.8,hi+.5],[hi+.5,MID],[hi+.5,lo+.8],[hi-.8,hi+.5],[hi+.5,hi-.8],[lo+2,hi+.5]];
   const alive=[]; let shots=[];
@@ -681,7 +794,8 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
       else if(after.won){ continue; }
       else { if(k<gone) continue; const p=Math.min(1,after.el/2.2), p2=Math.max(0,Math.min(1,(after.el-2.8)/2.4)); const ci=MID+.7+lane*.9, cj=MID+.9+depth*.4;
         i=ti+(ci-ti)*p+(si-ci)*p2*p; j=tj+(cj-tj)*p+(sj-cj)*p2*p; o.walk=after.el*12+k; o.carry=p2>0?['food','wood','stone','gold'][k%4]:null; o.flip=p2>0; }
-      const [x,y]=P(i,j), look=(raid&&raid.team)?guardLook(raid.team,Object.assign(o,{shield:(FLAGS[raid.team.flag]||FLAGS[0]).col})):raiderLook(s,o); put(Math.min(GN+EXT-1,i),Math.min(GN+EXT-1,j),()=>person(c,x,y,look)); } }
+      if(raid&&raid.team&&raid.team.mix) o.unit=raid.team.mix[k%raid.team.mix.length];
+      const [x,y]=P(i,j), look=(raid&&raid.team)?guardLook(raid.team,Object.assign(o,{shield:(FLAGS[raid.team.flag]||FLAGS[0]).col})):raiderLook(s,o); if(look.unit==='arc') look.tool='bow'; if(look.unit==='sie') look.tool=null; put(Math.min(GN+EXT-1,i),Math.min(GN+EXT-1,j),()=>person(c,x,y,look)); } }
   const down = raid ? Math.floor(shown*f*(1-ratio)+1e-6) : 0;
   for(let k=0;k<shown;k++){ let [i,j]=idle[k], o={walk:0,flip:false};
     if(!s.wall){ i=MID+1.1+(k%4)*.45-.6; j=MID+1.25+Math.floor(k/4)*.4; }
@@ -689,17 +803,21 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
     if(raid){ const p=Math.max(0,Math.min(1,(el-2.5)/5)), q=p*p*(3-2*p), bi=gateI+((k*5)%shown)/(shown-1||1)*3.4-1.7, bj=lineJ+.15+(k%2)*.22;
       i+= (bi-i)*q; j+=(bj-j)*q; if(p>0&&p<1) o.walk=el*12+k; else if(p>=1){ j+=Math.max(0,Math.sin(el*6+k*2.3))*.12; }
       if(k<down){ o.down=true; o.walk=0; } }
-    const [x,y]=P(i,j), look=guardLook(s,o); put(i,j,()=>person(c,x,y,look)); }
-  const marks=[], tops={}; let ctop=CPT[1]-40;
+    const ut=unitOf(s,k,shown); o.unit=ut; if(ut==='arc') o.tool='bow'; if(ut==='cav' || ut==='sie') o.tool=null;
+    const [x,y]=P(i,j), look=guardLook(s,o); if(ut==='arc') look.tool='bow'; if(ut==='cav'||ut==='sie') look.tool=ut==='cav'&&s.era<6?'spear':null; put(i,j,()=>person(c,x,y,look)); }
+  if(s.hero){ let hi2=MID+.05, hj=s.wall?hi+.35:MID+1.2, o={unit:'inf',walk:0}; if(raid){ const p=Math.max(0,Math.min(1,(el-2)/4)); hj+=(lineJ+.1-hj)*p; if(p>0&&p<1) o.walk=el*12; }
+    const [x,y]=P(hi2,hj), look=guardLook(s,Object.assign(o,{sc:1.8,cape:'#b3261e',crown:true,tool:weapon(s.era,false)})); look.shield=null; put(hi2,hj,()=>person(c,x,y,look)); }
+  const marks=[], tops={}, lit=[]; let ctop=CPT[1]-40;
   const pass=z=>{ for(let sum=-2*EXT;sum<=2*(GN+EXT-1);sum++){ for(let i=-EXT;i<GN+EXT;i++){ const j=sum-i; if(j<-EXT||j>=GN+EXT||zone(i,j)!==z) continue;
         const [x,y]=P(i,j), ring=Math.max(Math.abs(i-MID),Math.abs(j-MID)), inG=i>=0&&j>=0&&i<GN&&j<GN, Tl=inG?TILES[i*GN+j]:null, id=Tl?s.map['t'+Tl.idx]:null;
         if(ring===0){ const L=CENTER[Math.min(e,CENTER.length-1)]; if(e<2) stand(c,'fire',x-24,y+8,1.1+Math.sin(t*9)*.06); ctop=stand(c,L[0],x,y,L[1]);
           if(e===9) stand(c,'rocket',x+30,y+8,.9); if(e>=1) smoke(c,x-8,ctop+10,t,3);
           c.strokeStyle='#4a3520'; c.lineWidth=1.6; c.beginPath(); c.moveTo(x+14,ctop+16); c.lineTo(x+14,ctop-4); c.stroke(); const fl=Math.sin(t*3)*1.5; poly(c,'#2b2118',[x+13,ctop-5, x+28,ctop-1+fl, x+13,ctop+5]); poly(c,(FLAGS[s.flag]||FLAGS[0]).col,[x+14,ctop-3.6, x+25.5,ctop-.8+fl, x+14,ctop+3.4]); }
-        else if(id && ring<=R){ const L=s.lv[id]||1, tp=drawBuilding(c,s,id,x,y,L,t); if(L>1) pips(c,x,tp-6,L); if(opt.marks && opt.marks[id] && !tops[id]){ tops[id]=1; marks.push([x,tp-(L>1?16:8)]); }
+        else if(id && ring<=R){ const L=s.lv[id]||1, tp=drawBuilding(c,s,id,x,y,L,t); lit.push([x,(y+tp)/2]); if(L>1) pips(c,x,tp-6,L); if(opt.marks && opt.marks[id] && !tops[id]){ tops[id]=1; marks.push([x,tp-(L>1?16:8)]); }
           if(opt.fx) for(const fx of opt.fx) if(fx.id===id && fx.age<1.4){ for(let q=0;q<5;q++){ const u=(fx.age/1.4+q*.2)%1; dot(c,'rgba(255,236,150,'+(1-u).toFixed(2)+')',x+Math.sin(q*2.4)*14,tp+20-u*42,2.6-u*1.2); } } }
         else if(ring>R && !(j>MID && Math.abs(i-MID)<=2)){ const r=h2(i,j); if(r<.78){ const nm=r<.3?'treePine_large':r<.5?'treeRound_large':r<.66?'treePine_small':'treeRound_small'; stand(c,nm,x+(h2(j,i)-.5)*16,y+(h2(i+3,j)-.5)*8,1.25); }
           else if(r>.95) stand(c,'rockGrey_small1',x,y,1); }
+        else if(Tl && ring<=R && s.deco && s.deco['t'+Tl.idx]){ const d=DECOBY[s.deco['t'+Tl.idx]]; if(d) stand(c,d.spr,x,y,d.id==='fountain'?.9:1.05); lit.push([x,y-14]); }
         else if(Tl && ring<=R && !(i===MID&&j>MID)){ const r=Tl.tr; if(r<.3){ const dk=DECO[e][Math.floor(r/.3*4)%4]; stand(c,dk,x,y,dk==='fountain'||dk==='ruinsCorner'?.8:1); } } }
       const pr=rows[z][sum]; if(pr) for(const fn of pr) fn(); } };
   const spots=towerSpots(lo,hi), tname = e>=9?'turret_large':e>=8?'turret_medium':'tower', tk=e>=8?.8:.72, srcs=[];
@@ -725,6 +843,13 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
   if(raid && el>=AP && ratio<1 && s.wall){ smoke(c,gx,gy-10,t*2,3); }
   if(after && !after.won){ smoke(c,gx,gy-8,t*2,4); smoke(c,CPT[0]+10,ctop+20,t*2+.3,4); }
   const badge=(x,y)=>{ const bb=Math.sin(t*4)*2; dot(c,'#3a2713',x,y-bb,8.5); dot(c,'#f0c54e',x,y-bb,7); c.fillStyle='#3a2713'; c.fillRect(x-1.2,y-bb-4.4,2.4,5.4); c.fillRect(x-1.2,y-bb+2.1,2.4,2.4); };
+  if(opt.sel){ const [x,y]=P(opt.sel.i,opt.sel.j); c.strokeStyle='#fff3e4'; c.lineWidth=2.4; c.setLineDash([5,4]); diamondPath(c,x,y,.95); c.stroke(); c.setLineDash([]); }
+  const dk=opt.dark||0, sea=opt.season;
+  if(sea==='winter'){ c.fillStyle='rgba(235,245,255,.22)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<70;k++){ const fx=(h2(k,3)*1400-700), fy=((h2(k,9)*900+t*28*(0.6+h2(k,1)))%900)-300; dot(c,'rgba(255,255,255,.85)',fx,fy,1.4+h2(k,5)*1.4); } }
+  else if(sea==='herfst'){ c.fillStyle='rgba(255,150,40,.07)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<22;k++){ const fx=(h2(k,13)*1200-600)+Math.sin(t+k)*18, fy=((h2(k,7)*800+t*16)%800)-260; poly(c,k%2?'#d9772b':'#c4502a',[fx,fy-2.5, fx+3,fy, fx,fy+2.5, fx-3,fy]); } }
+  if(dk>0){ c.fillStyle='rgba(12,22,58,'+(dk*.5).toFixed(3)+')'; c.fillRect(-4000,-4000,8000,8000);
+    c.save(); c.globalCompositeOperation='lighter'; for(const [x,y] of lit){ const g=c.createRadialGradient(x,y,0,x,y,22); g.addColorStop(0,'rgba(255,200,90,'+(dk*.55).toFixed(3)+')'); g.addColorStop(1,'rgba(255,200,90,0)'); c.fillStyle=g; c.fillRect(x-22,y-22,44,44); dot(c,'rgba(255,230,150,'+(dk*.9).toFixed(3)+')',x-4,y,1.6); dot(c,'rgba(255,230,150,'+(dk*.9).toFixed(3)+')',x+5,y+2,1.6); }
+    const g=c.createRadialGradient(CPT[0],ctop+20,0,CPT[0],ctop+20,46); g.addColorStop(0,'rgba(255,190,90,'+(dk*.45).toFixed(3)+')'); g.addColorStop(1,'rgba(255,190,90,0)'); c.fillStyle=g; c.fillRect(CPT[0]-46,ctop-26,92,92); c.restore(); }
   for(const m of marks) badge(m[0],m[1]-8);
   if(opt.markDef && e>=2 && !raid) badge(gx,gy-WALLH[s.wall||1]-22);
 }
@@ -733,8 +858,8 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
 const $ = id => document.getElementById(id);
 const KEY = 'vuursteen-vorst-v2';
 const STILL = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-const TITLES = {b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
-let VIEW_S=null, VIEW_NAME='', REPLAY=null, ATTACK=null, prConfirm=0;
+const TITLES = {w:'Wereldkaart', b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
+let MOVE=false, MOVESEL=null, WPOS=[], VIEW_S=null, VIEW_NAME='', REPLAY=null, ATTACK=null, prConfirm=0;
 let S, tab = 'b', open = false, dirty = false, localLast = 0, readyState = null, MAPT = {z:1,ox:0,oy:0}, CAM = null, AFTER = null, FX = [], warned = 0, thState = '';
 
 let toastT;
@@ -755,11 +880,22 @@ function boot(){
   if(!raw){ S.gems = Math.min(200, carry); open = true; }
   applyAway(now);
 }
+let REPORT=null;
+function reportAdd(line){ if(REPORT) REPORT.lines.push(line); return !!REPORT; }
+function showReport(){ const R=REPORT; REPORT=null; if(!R || !R.lines.length) return; let el=$('report');
+  if(!el){ el=mk('div','report'); el.id='report'; el.setAttribute('role','dialog'); document.body.append(el); }
+  el.innerHTML=`<div class="card"><h2>Welkom terug!</h2><p class="hint">Je was ${fmtLeft(R.gone*1000)} weg. Dit gebeurde er:</p><ul>${R.lines.map(l=>`<li>${esc2(l)}</li>`).join('')}</ul><button class="buy wide" data-act="report" data-arg="">Verder spelen</button></div>`;
+  el.hidden=false; render(); }
 function applyAway(now){
-  const away = Math.min((now - S.last)/1000, OFFLINE_CAP + 7200*S.go);
+  const gone=(now-S.last)/1000, away = Math.min(gone, OFFLINE_CAP + 7200*S.go);
   if(away > 60){ const before = Object.assign({}, S.res); produce(S, away, 0);
-    const got = MAIN.filter(k => S.res[k]-before[k] >= 1).map(k => '+'+fmt(S.res[k]-before[k])+' '+RES_NAME[k].toLowerCase());
-    if(got.length) toast('Terwijl je weg was: '+got.join(', '), 5000); }
+    const got = RES.filter(k => S.res[k]-before[k] >= 1 && (MAIN.indexOf(k)<0 || RES_ERA[k]<=S.era)).map(k => '+'+fmt(S.res[k]-before[k])+' '+RES_NAME[k].toLowerCase());
+    const lines=[]; if(got.length) lines.push('Je dorp verzamelde '+got.slice(0,6).join(', ')+'.');
+    if(gone > away+60) lines.push(`Je dorp werkte ${fmtLeft(away*1000)} door. Met de Nachtwacht (Winkel) werkt het langer door.`);
+    const done=researchTick(S,now); if(done) lines.push('Onderzoek klaar: '+done.name+'.');
+    if(S.ob && !S.obOff){ const built={}; for(let i=0;i<Math.min(40,Math.floor(away/(OB_EVERY[Math.min(3,S.ob)]||40)));i++){ const d=overseerPick(S); if(!d || !buy(S,d)) break; built[d.name]=(built[d.name]||0)+1; }
+      const b=Object.keys(built).map(n => built[n]+'× '+n.toLowerCase()); if(b.length) lines.push('Je opzichter bouwde '+b.join(', ')+'.'); }
+    if(gone > 300) REPORT={gone, lines, t:now}; else if(got.length) toast('Terwijl je weg was: '+got.slice(0,4).join(', '), 5000); }
   S.last = now; if(S.raid){ S.raid = null; S.raidAt = now+180000; } if(S.raidAt && S.raidAt < now+120000) S.raidAt = now+180000; syncMap(S);
 }
 
@@ -802,15 +938,24 @@ function defHtml(){
   const g=nextGate(S), gn=GATE[S.gate+1];
   h+=`<div class="row"><h3>Poort<i>${S.gate?GATE[S.gate].name+' · niveau '+S.gate:'nog niet gebouwd'}</i></h3><p>Elk poortniveau geeft ${u(15)} verdediging.</p>`
     +(g?actLine('Bouw','gate','',scaled(g.cost,disc(S)),g.name+': '):gn?`<p class="hint">${gn.era>S.era?gn.name+' komt vrij in '+de(ERAS[gn.era])+'.':'Bouw eerst een hogere muur.'}</p>`:'<p class="hint">Hoogste poort bereikt.</p>')+'</div>';
-  const cap=guardCap(S);
-  h+=`<div class="row"><h3>Wachters<i class="num">${S.guards} van ${cap}</i></h3><p>Elke wachter geeft ${fmtRate(guardPower(S)*dm)} verdediging en vecht mee bij de poort. Een hogere kazerne maakt ze sterker. Wachters eten mee van je voedsel${S.era>=3?' en krijgen soldij in goud':''}.</p>`
-    +(!cap?'<p class="hint">Bouw eerst een kazerne bij Bouw.</p>':S.guards>=cap?'<p class="hint">Je kazernes zijn vol. Elke extra kazerne geeft 5 plekken.</p>':actLine('Werf wachter','guard','',guardCost(S)))+'</div>';
+  const cap=guardCap(S), n=armySize(S), A=army(S,Date.now());
+  h+=`<h3 class="sub">Leger</h3><div class="row"><h3>Kazernes<i class="num">${n} van ${cap} soldaten</i></h3><p>Elke kazerne biedt plek aan 8 soldaten. Een hogere kazerne maakt alle soldaten 25% sterker. Soldaten verdedigen je dorp en trekken mee als je aanvalt.</p>
+    <p class="hint">Sterk tegen elkaar: speerdragers verslaan ruiters, ruiters verslaan boogschutters en belegering, boogschutters verslaan speerdragers. Belegering breekt muren; ruiters in je eigen dorp houden belegering tegen.</p>${!cap?'<p class="hint">Bouw eerst een kazerne bij Bouw.</p>':''}</div>`;
+  for(const x of UNITS){ const nm=unitName(x,S.era), c=ucount(S,x.id);
+    if(x.era>S.era){ h+=`<div class="row tech locked"><h3>${nm}</h3><p class="hint">Komt vrij in ${de(ERAS[x.era])}.</p></div>`; continue; }
+    h+=`<div class="row unit"><h3>${nm}<i class="num">${c}</i></h3><p>Aanval ${fmtRate(A[x.id][0]/Math.max(1,c))} · verdediging ${fmtRate(A[x.id][1]/Math.max(1,c))} per soldaat${x.beats.length?' · sterk tegen '+x.beats.map(b=>unitName(UNITBY[b],Math.max(S.era,UNITBY[b].era)).toLowerCase()).join(' en '):' · breekt muren'}.</p>`
+      +(!cap?'':n>=cap?'<p class="hint">Je kazernes zijn vol.</p>':actLine('Train','train',x.id,unitCost(S,x)))+'</div>'; }
+  h+=`<h3 class="sub">Held</h3>`;
+  if(!S.hero) h+=`<div class="row"><h3>Huur een held</h3><p>Een held vecht mee en wordt sterker van elk gevecht: elk niveau geeft al je soldaten 6% extra kracht.</p><form id="heroForm"><label for="heroName">Naam van je held</label><input id="heroName" maxlength="20" placeholder="Aldo"><button class="buy" type="submit">Huur held</button></form></div>`;
+  else { const need=heroNeed(S.hero.lv); h+=`<div class="row"><h3>${esc2(S.hero.name)}<i class="num">niveau ${S.hero.lv}</i></h3><p>Al je soldaten ${Math.round((heroMult(S)-1)*100)}% sterker. Ervaring krijgt je held bij overvallen, aanvallen, barbarenkampen en verkenningen.</p><span class="erabar"><i style="width:${Math.round(S.hero.xp/need*100)}%"></i></span><p class="hint num">${Math.floor(S.hero.xp)} van ${need} ervaring tot niveau ${S.hero.lv+1}</p></div>`; }
+
   return h+'<div class="list" id="raidLog"></div>'; }
 function upkeepHtml(){ const u=upkeep(S), g=gross(S,Date.now()), L=[], pc=v => (v*100).toFixed(v<.1?1:0).replace('.',',');
   const add=(k,txt) => { if(u[k]) L.push(`<p><i class="ic ${k}"></i>${txt} <b class="num">${pc(u[k])}%</b> van je ${RES_NAME[k].toLowerCase()}${g[k]>0?' (−'+fmtRate(g[k]*u[k])+'/s)':''}.</p>`); };
   add('food','Inwoners en wachters eten'); add('wood','Onderhoud van gebouwen kost'); add('stone','Muur, poort en torens kosten'); add('gold','Soldij voor wachters kost');
   add('coal','Huizen en fabrieken stoken'); add('power','De stad verbruikt');
   return `<div class="row"><h3>Onderhoud van je stad</h3>${L.join('')}<p class="hint">Meer gebouwen en wachters geven meer onderhoud. De getallen bovenaan zijn wat je netto overhoudt. De edelsteen-upgrade Rentmeester verlaagt het.</p></div>`; }
+function esc2(t){ return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function techHtml(){ const now=Date.now(); let h=`<h3 class="sub">Onderzoek</h3>`;
   if(S.rs){ const t=TECHBY[S.rs.id]; h+=`<div class="row busy"><h3>Bezig: ${t.name}</h3><p>${t.desc}. Klaar over <b class="num" data-rsleft="1"></b>.</p><div class="act">${gemBtn('Maak nu af','rush','',rushCost(S,now),false)}<span class="cost">1 edelsteen per 10 minuten die nog over zijn.</span></div></div>`; }
   else h+=`<p class="hint">Je onderzoekt één ding tegelijk. Het kost grondstoffen en tijd, en werkt daarna voor altijd.</p>`;
@@ -825,13 +970,19 @@ function prHtml(){ const g=prGain(S), n=S.pr||0;
   return h+`<p>Begin opnieuw in de Steentijd en krijg <b>${g} ${g>1?'kronen':'kroon'}</b> en ${5*g} edelstenen. Je houdt je edelstenen, edelsteen-verbeteringen en vlaggen. Gebouwen, grondstoffen en onderzoek begin je opnieuw.</p>
     <div class="act"><button class="buy" id="prBtn" data-act="prestige" data-arg="">Sticht een nieuw rijk</button></div></div>`; }
 function upHtml(){
-  let h=techHtml()+prHtml()+`<h3 class="sub">Overig</h3>`+upkeepHtml()+`<div class="row"><h3>Beter gereedschap<i class="num">niveau ${S.tool}</i></h3><p>Verdubbelt wat je per tik verzamelt.</p>${actLine('Koop','tool','',toolCost(S))}</div>`;
+  const now=Date.now(), se=SEASONS[season(now)], dp=dayPart(now);
+  let deco=`<h3 class="sub">Dorp inrichten</h3><div class="row"><h3>Seizoen en tijd<i>${se.name} · ${dp}</i></h3><p>${se.desc}. 's Nachts werken smederij, zagerij, academie, fabriek en kantoor 25% harder${isNight(now)?' (nu actief)':''}.</p></div>
+    <div class="row"><h3>Versieringen<i class="num">${decoCount(S)} van ${DECO_MAX}</i></h3><p>Elke versiering geeft blijvend 2% meer productie en komt op een vrije plek in je dorp.</p>
+    <div class="act"><button class="buy" data-act="move" data-arg="">${MOVE?'Klaar met verplaatsen':'Verplaats gebouwen'}</button></div></div>`;
+  for(const d of DECOS){ if(d.era>S.era) continue; deco+=`<div class="row"><h3>${d.name}</h3>${decoCount(S)>=DECO_MAX?'<p class="hint">Je dorp staat vol versieringen.</p>':actLine('Plaats','deco',d.id,decoCost(S,d))}</div>`; }
+  let h=techHtml()+prHtml()+deco+`<h3 class="sub">Overig</h3>`+upkeepHtml()+`<div class="row"><h3>Beter gereedschap<i class="num">niveau ${S.tool}</i></h3><p>Verdubbelt wat je per tik verzamelt.</p>${actLine('Koop','tool','',toolCost(S))}</div>`;
   h+= S.era>=1 ? `<div class="row"><h3>Feestmaal</h3><p>5 minuten lang 50% meer productie. <span id="feastLeft" class="num"></span></p>${actLine('Vier feest','feast','',feastCost(S))}</div>`
                : `<p class="hint">Vanaf de Bronstijd geef je met appels en vlees een feestmaal voor extra productie.</p>`;
   return h+`<p class="hint">Elk nieuw tijdperk geeft 60% meer productie en tikkracht.</p>`; }
 function shopHtml(){
   let h=`<p class="hint"><i class="ic gems"></i>Je hebt <b id="gemN" class="num"></b> edelstenen. Je krijgt er 5 bij elk nieuw tijdperk, 1 bij elke derde afgeslagen overval, en soms een cadeau van de spelleider.</p><h3 class="sub">Blijvende verbeteringen</h3>`;
-  h+=GEMUP.map(u => { const lv=S[u.id]||0, mx=lv>=u.max; return `<div class="row"><h3>${u.name}<i class="num">niveau ${lv}</i></h3><p>${u.desc}</p><div class="act">${gemBtn(mx?'Max':'Koop · '+gemCost(S,u),'gem',u.id,gemCost(S,u),mx)}</div></div>`; }).join('');
+  h+=GEMUP.map(u => { const lv=S[u.id]||0, mx=lv>=u.max; return `<div class="row"><h3>${u.name}<i class="num">niveau ${lv}</i></h3><p>${u.desc}</p><div class="act">${gemBtn(mx?'Max':'Koop · '+gemCost(S,u),'gem',u.id,gemCost(S,u),mx)}${u.id==='ob'&&lv?`<button class="link" data-act="obToggle" data-arg="">${S.obOff?'Laat hem weer bouwen':'Laat hem even rusten'}</button>`:''}</div></div>`; }).join('');
+  if(typeof shopPacksHtml==='function') h+=shopPacksHtml();
   h+=`<h3 class="sub">Eenmalig te gebruiken</h3>`+GEMUSE.map(u => `<div class="row"><h3>${u.name}</h3><p>${u.desc} <span id="${u.id}Left" class="num"></span></p><div class="act">${gemBtn('Koop · '+u.cost,'use',u.id,u.cost,u.id==='peace'&&S.era<2||u.id==='merc'&&S.era<2)}</div></div>`).join('');
   h+=`<h3 class="sub">Vlagkleur</h3><div class="row"><p>Kleurt je banier en de vlag op je dorpscentrum. Een nieuwe kleur kost ${FLAG_COST} edelstenen.</p><div class="swatches">`
     +FLAGS.map((f,i) => { const own=S.flags.indexOf(i)>=0; return `<button data-act="flag" data-arg="${i}" style="background:${f.col}" aria-pressed="${S.flag===i}" ${own?'':`data-gems="${FLAG_COST}"`}>${f.name}${own?'':' · '+FLAG_COST}</button>`; }).join('')+`</div></div>`;
@@ -855,14 +1006,14 @@ function reqRow(r){
     if(!r.ok) action = g ? actLine('Bouw','gate','',scaled(g.cost,disc(S)),g.name+': ') : '<span class="sub">Bouw eerst een hogere muur.</span>'; }
   else if(r.kind==='towers'){ title='Wachttorens'; sub=`${r.need} torens. Nu: ${r.have}.`;
     if(!r.ok) action = S.towers<towerCap(S) ? actLine('Bouw toren','tower','',towerCost(S)) : '<span class="sub">Bouw eerst een hogere muur voor meer plekken.</span>'; }
-  else { title='Wachters'; sub=`${r.need} wachters. Nu: ${r.have}.`;
+  else { title=unitName(UNITBY.inf,S.era); sub=`${r.need} ${unitName(UNITBY.inf,S.era).toLowerCase()}. Nu: ${r.have}.`;
     if(!r.ok) action = S.guards>=guardCap(S) ? actLine('Bouw kazerne','build','barracks',buildCost(S,BY.barracks),'Geen plek meer. ') : actLine('Werf wachter','guard','',guardCost(S)); }
   return `<div class="req ${r.ok?'ok':''}"><b>${title}</b><span class="sub">${sub}</span>${action}</div>`; }
 function eraHtml(){ const reqs=eraReqs(S), nx=ERAS[S.era+1];
   if(!nx) return '<p class="hint">Je hebt het laatste tijdperk van deze alfa bereikt. Meer tijdperken volgen later.</p>';
   const rows=reqs.filter(r => r.kind!=='res' && !r.ok).concat(reqs.filter(r => r.kind==='res'), reqs.filter(r => r.kind!=='res' && r.ok));
   return `<button class="buy wide" id="adv2" data-act="adv" data-arg="">Ga naar ${de(nx)}</button><p class="hint">Haal alle eisen. Daarna ga je verder met deze knop of met een tik op je hoofdgebouw.</p>`+rows.map(reqRow).join(''); }
-function listHtml(){ return tab==='d' ? defHtml() : tab==='u' ? upHtml() : tab==='s' ? shopHtml() : tab==='e' ? eraHtml() : buildHtml(); }
+function listHtml(){ return tab==='w' ? (typeof worldHtml==='function'?worldHtml():'') : tab==='d' ? defHtml() : tab==='u' ? upHtml() : tab==='s' ? shopHtml() : tab==='e' ? eraHtml() : buildHtml(); }
 
 function initStatic(){
   $('res').innerHTML = MAIN.map(k => `<div id="r-${k}"><i class="ic ${k}" title="${RES_NAME[k]}"></i><b class="num"></b><small class="num"></small></div>`).join('');
@@ -902,6 +1053,7 @@ function refresh(){ const now=Date.now(), r=rates(S,now);
   document.querySelectorAll('button[data-cost]').forEach(b => { if(!b._c) b._c=JSON.parse(b.dataset.cost); b.disabled = !can(S,b._c); });
   document.querySelectorAll('button[data-gems]').forEach(b => { b.disabled = S.gems < +b.dataset.gems; });
   const rl=$('raidLeft'); if(rl) rl.textContent = now<S.peaceUntil ? 'Vredesverdrag: nog '+fmtLeft(S.peaceUntil-now)+' geen overvallen.' : S.raidAt ? 'Volgende overval over '+fmtLeft(S.raidAt-now)+'.' : '';
+  const tc=$('timeChip'); if(tc){ tc.textContent=SEASONS[season(now)].name+' · '+dayPart(now); tc.hidden=!!VIEW_S || (typeof WORLD_ON!=='undefined' && WORLD_ON); }
   const rc=$('rsChip'); if(rc){ rc.hidden=!S.rs || !!VIEW_S || !!REPLAY; if(S.rs){ const t=TECHBY[S.rs.id]; rc.textContent='Onderzoek: '+t.name+' · '+fmtLeft(S.rs.end-now); } }
   document.querySelectorAll('[data-rsleft]').forEach(n => { n.textContent = S.rs ? fmtLeft(S.rs.end-now) : 'nu'; });
   setLeft('feastLeft',S.feastUntil,now,'Nog ',' actief.'); setLeft('partyLeft',S.partyUntil,now,'Nog ',' actief.');
@@ -929,6 +1081,19 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'wall': ok=buyWall(S); if(ok) toast(WALL[S.wall].name+' gebouwd rond je dorp. Je hebt nu plek voor '+towerCap(S)+' torens.'); break;
     case 'gate': ok=buyGate(S); if(ok) toast(GATE[S.gate].name+' gebouwd.'); break;
     case 'guard': ok=recruit(S); break;
+    case 'train': ok=train(S,UNITBY[arg]); break;
+    case 'deco': ok=placeDeco(S,DECOBY[arg]); if(ok) toast(DECOBY[arg].name+' geplaatst: +2% productie.'); break;
+    case 'move': MOVE=!MOVE; MOVESEL=null; if(MOVE){ open=false; toast('Verplaatsen: tik op een gebouw en dan op de nieuwe plek. Tik weer op Klaar als je klaar bent.',6000); } $('moveBtn').hidden=!MOVE; render(); return;
+    case 'pack': if(typeof buyPack==='function') buyPack(+arg); return;
+    case 'share': if(typeof shareGame==='function') shareGame(); return;
+    case 'install': if(typeof doInstall==='function') doInstall(); return;
+    case 'report': $('report').hidden=true; return;
+    case 'obToggle': S.obOff=!S.obOff; dirty=true; toast(S.obOff?'De opzichter rust even.':'De opzichter bouwt weer mee.'); render(); return;
+    case 'world': openWorld(); return;
+    case 'giftTo': if(typeof giftOpen==='function') giftOpen(arg); return;
+    case 'worldAt': openWorld(arg); return;
+    case 'march': sendMarch(arg); return;
+    case 'zoom': worldZoom(+arg); return;
     case 'gem': ok=buyGem(S,GEMUP.find(u => u.id===arg)); break;
     case 'use': ok=useGem(S,GEMUSE.find(u => u.id===arg),now); if(ok) toast(GEMUSE.find(u => u.id===arg).name+' geactiveerd'); break;
     case 'flag': ok=pickFlag(S,+arg); break;
@@ -946,12 +1111,20 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'resetMe': adminReset(false); return;
     case 'resetAll': adminReset(true); return;
     case 'view': viewVillage(arg); return;
-    case 'unview': endView(); return;
+    case 'unview': if(typeof WORLD_ON!=='undefined' && WORLD_ON) closeWorld(); else endView(); return;
     case 'copyMy': try{ navigator.clipboard.writeText($('myCode').textContent).then(() => toast('Herstelcode gekopieerd'), () => {}); }catch(e){} return;
     case 'copyCode': try{ navigator.clipboard.writeText($('gateCode').textContent).then(() => toast('Code gekopieerd'), () => {}); }catch(e){} return;
     default: return; }
   if(ok) dirty=true; render(); }
 
+const VNAMES={center:['Bram','verzamelaar'],camp:['Ida','jager'],hut:['Joris','houthakker'],farm:['Mieke','boerin'],quarry:['Sjef','steenhouwer'],mine:['Truus','mijnwerker'],mill:['Kees','zager'],market:['Fien','koopvrouw'],smithy:['Harm','smid']};
+const VLINES={center:['Ik breng alles naar het dorpshuis.','Wat zal ik nu eens halen?'],camp:['Vandaag weer een mooi hert.','Stil, ik hoor iets in het bos.'],hut:['Nog drie bomen en dan pauze!','Hout genoeg voor de winter.'],
+  farm:['De oogst is goed dit jaar.','Wie heeft er weer van mijn appels gegeten?'],quarry:['Steen voor de nieuwe muur!','Pas op, vallende stenen.'],mine:['Ik zag net iets glinsteren!','Diep in de berg is het koud.'],
+  mill:['Planken zagen, planken zagen.','Mijn zaag moet geslepen worden.'],market:['Verse waar, goede prijs!','Goud rolt, de stad groeit.'],smithy:['Het ijzer moet heet zijn.','Nieuwe zwaarden voor de wachters!']};
+let bubT=0;
+function villagerSays(w,x,y){ const nm=VNAMES[w.id]||['Inwoner','dorpeling'], L=VLINES[w.id]||['Mooie dag vandaag.'], b=$('bubble'), line=L[Math.floor(Math.random()*L.length)];
+  if(!b) return; b.textContent=''; const h=document.createElement('b'); h.textContent=nm[0]+', '+nm[1]; b.append(h, document.createElement('br'), document.createTextNode(line));
+  b.style.left=Math.max(8,x-90)+'px'; b.style.top=Math.max(8,y-74)+'px'; b.hidden=false; clearTimeout(bubT); bubT=setTimeout(() => b.hidden=true, 3500); }
 function gather(sx,sy){ const p=click(S); dirty=true; const f=document.createElement('span'); f.className='fly';
   f.textContent='+'+fmt(p); f.style.setProperty('--dx',(Math.random()*40-20)+'px'); f.style.left=(sx-10)+'px'; f.style.top=(sy-26)+'px';
   $('field').appendChild(f); f.addEventListener('animationend',() => f.remove()); setTimeout(() => f.remove(),900); refresh(); }
@@ -964,6 +1137,7 @@ let lastT=0;
 function animTick(now){ for(const k of ['REPLAY','ATTACK']){ const a = k==='REPLAY' ? REPLAY : ATTACK; if(!a || now-a.t0 < (a.dur+5)*1000) continue;
     if(k==='REPLAY') REPLAY=null; else ATTACK=null; if(a.done) a.done(); } }
 function draw(t,dt){ const cv=$('map'), w=cv.clientWidth, h=cv.clientHeight; if(!w || !h) return; const D=VIEW_S||S, own=!VIEW_S;
+  if(typeof WORLD_ON!=='undefined' && WORLD_ON){ const dpr=Math.min(window.devicePixelRatio||1,2.5), W=Math.round(w*dpr), H=Math.round(h*dpr); if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; } const c=cv.getContext&&cv.getContext('2d'); if(c) drawWorld(c,w,h,dpr,t); return; }
   const dpr=Math.min(window.devicePixelRatio||1,2.5), W=Math.round(w*dpr), H=Math.round(h*dpr);
   if(cv.width!==W || cv.height!==H){ cv.width=W; cv.height=H; }
   const c=cv.getContext && cv.getContext('2d'); if(!c) return;
@@ -983,13 +1157,15 @@ function draw(t,dt){ const cv=$('map'), w=cv.clientWidth, h=cv.clientHeight; if(
   const reqs=own?eraReqs(S):[], marks={}; let markDef=false, done=0;
   for(const r of reqs){ if(r.ok){ done++; continue; } if(r.kind==='b') marks[r.id]=1; else if(r.kind!=='res') markDef=true; }
   const pn=performance.now(); FX=FX.filter(f => pn-f.t0<1400);
-  const opt={marks,markDef,fx:FX.map(f => ({id:f.id,age:(pn-f.t0)/1000}))};
+  const opt={marks,markDef,fx:FX.map(f => ({id:f.id,age:(pn-f.t0)/1000})),dark:darkness(now),season:season(now)};
+  if(own && MOVE && MOVESEL){ const T=TILES.find(t => 't'+t.idx===MOVESEL); if(T) opt.sel={i:T.i,j:T.j}; }
   if(rr) opt.raid=rr;
   else if(own && S.raid) opt.raid={el:(now-S.raid.start)/1000,dur:RAID_DUR/1000,n:S.raid.n,str:S.raid.str,def:defence(S,now)};
   else if(after) opt.after = after.t0!==undefined ? {el:(now-after.t0)/1000,won:after.won,n:after.n,str:after.str,def:after.def} : after;
   c.setTransform(1,0,0,1,0,0); c.fillStyle='#27ae60'; c.fillRect(0,0,W,H);
   c.setTransform(dpr*z,0,0,dpr*z,dpr*ox,dpr*oy); c.imageSmoothingEnabled=true; c.imageSmoothingQuality='high';
   drawScene(c,D,t,opt);
+  WPOS = own ? WORKERS.map(w => { const p=P(w.i,w.j); return {w, x:p[0]*z+ox, y:p[1]*z+oy}; }) : [];
   c.setTransform(dpr,0,0,dpr,0,0);
   if(IMG && reqs.length && !fight){ const go=done===reqs.length, bob=go?Math.sin(t*5)*2:0;
     pill(c, CPT[0]*z+ox, Math.max(26,centerTop(S)*z+oy-12+bob), go ? 'Tik: '+ERAS[S.era+1].name : done+' / '+reqs.length+' eisen', go); } }
@@ -1002,13 +1178,22 @@ function start(){
   render();
   try{ if(!localStorage.getItem('vv-onderhoud') && buildings(S)>0){ localStorage.setItem('vv-onderhoud','1'); toast('Nieuw: je stad kost nu onderhoud. Het overzicht staat bij Verbeter.',7000); } }catch(e){}
   document.addEventListener('click', e => { const b=e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act, b.dataset.arg||''); });
-  $('map').addEventListener('click', e => { if(VIEW_S) return; const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
+  $('map').addEventListener('click', e => { if(typeof WORLD_ON!=='undefined' && WORLD_ON){ if(wDrag&&wDrag.moved) return; const q=$('map').getBoundingClientRect(); worldTap(e.clientX-q.left,e.clientY-q.top); return; } if(VIEW_S) return; const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
+    if(MOVE){ const [ti,tj]=hitTile(wx,wy+TH*.25); const T=ti>=0&&tj>=0&&ti<GN&&tj<GN ? TILES[ti*GN+tj] : null, key=T?'t'+T.idx:null;
+      if(!key || !SLOTKEY[key] || T.ring>RAD[S.era]){ toast('Kies een plek binnen je dorp.'); return; }
+      if(!MOVESEL){ if(!S.map[key] && !S.deco[key]){ toast('Tik eerst op een gebouw of versiering.'); return; } MOVESEL=key; toast('Tik nu op de nieuwe plek.'); return; }
+      if(swapTiles(S,MOVESEL,key)){ dirty=true; toast('Verplaatst.'); } MOVESEL=null; return; }
+    const near=WPOS.find(p => Math.hypot(p.x-sx,p.y+10-sy)<16); if(near){ villagerSays(near.w,near.x,near.y); return; }
     if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5) centerTap(); else gather(sx,sy); });
   $('tapBtn').addEventListener('click', () => { if(VIEW_S) return; const q=$('field').getBoundingClientRect(); gather(q.width/2, q.height-40); });
-  $('ideaForm').addEventListener('submit', sendIdea); $('msgForm').addEventListener('submit', sendNotice); if($('gateForm')) $('gateForm').addEventListener('submit', tryCode); if($('reqForm')) $('reqForm').addEventListener('submit', adminCode);
+  if(typeof worldPointer==='function') worldPointer();
+  document.addEventListener('submit', e => { if(e.target && e.target.id==='heroForm'){ e.preventDefault(); if(hireHero(S,$('heroName').value)){ dirty=true; toast(S.hero.name+' staat klaar om je leger aan te voeren!'); render(); } } });
+  $('ideaForm').addEventListener('submit', sendIdea); if($('msgForm')) $('msgForm').addEventListener('submit', sendNotice); if($('gateForm')) $('gateForm').addEventListener('submit', tryCode); if($('reqForm')) $('reqForm').addEventListener('submit', adminCode);
   let prev=Date.now();
   setInterval(() => { const now=Date.now(), dt=Math.min((now-prev)/1000, OFFLINE_CAP); prev=now; produce(S,dt,now); autoClick(S,dt);
     animTick(now);
+    const ob=overseer(S,now); if(ob){ dirty=true; if(open && tab==='b') render(); }
+    if(REPORT && now-REPORT.t>2500 && !REPLAY && !ATTACK) showReport();
     const done=researchTick(S,now); if(done){ dirty=true; toast('Onderzoek klaar: '+done.name+'. '+done.desc+'.',5000); render(); }
     const rn=S.raid?S.raid.n:0, ev=raidTick(S,now,Math.random);
     if(ev){ dirty=true;
@@ -1026,8 +1211,8 @@ function start(){
 }
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-20';
-const NEWS=['Ranglijst: zie hoe ver de andere spelers zijn, en bekijk hun dorp.','Onderzoek: een technologieboom per tijdperk, te vinden bij Verbeter.','Nieuw rijk stichten: vanaf de Koloniale Tijd begin je opnieuw met kronen die blijvend meer opleveren.','Overvallen: val andere spelers aan vanuit de ranglijst en zie het gevecht live. Word je zelf aangevallen, dan zie je een herhaling.','Meldingen: krijg een pushbericht op je telefoon als je wordt aangevallen. Zie Spelers.'];
+const GAME_VERSION='2026-11-21';
+const NEWS=['Leger: train boogschutters, ruiters en belegeringswapens naast je speerdragers. Elk type wint van een ander, en belegering breekt door muren.','Held: huur een held die meevecht, ervaring opdoet en sterker wordt.','Wereldkaart: stuur je leger naar andere dorpen en barbarenkampen. Hoe verder weg, hoe langer de tocht. Verkenners vinden schatten in ruïnes.','Wraak: ben je geplunderd, dan kun je 2 uur lang sneller en sterker terugslaan.','Dag en nacht, en seizoenen: \'s nachts branden de lampen en werken smederij en werkplaats harder. In de winter is er minder voedsel, in de herfst juist meer.','Dorp inrichten: verplaats je gebouwen en zet beelden, fonteinen en lantaarns neer. Tik op je dorpelingen.','Weekendtoernooi: van vrijdag 18:00 tot zondag 22:00, met edelstenen voor de top 3. Zie Spelers.','Cadeaus sturen naar andere spelers, en een eigen wapenschild met titel.','Opzichter (Winkel): bouwt zelf mee, ook als je weg bent. Bij terugkomst zie je een verslag.','Nodig vrienden uit met je eigen link en krijg edelstenen als ze meedoen. Meld bugs via Spelers.','Installeer het spel als app op je telefoon. Zie Spelers.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1037,6 +1222,8 @@ function ago(ms){ const m=Math.floor((Date.now()-ms)/60000); if(!ms) return 'onb
   if(m<1440) return Math.floor(m/60)+' uur geleden'; return Math.floor(m/1440)+' dagen geleden'; }
 const IDEA_ST = {nieuw:['','Nieuw'], gepland:['warn','Gepland'], gebouwd:['on','Gebouwd'], afgewezen:['bad','Afgewezen']};
 const siteUrl = () => location.href.split('#')[0].split('?')[0];
+try{ const rf=new URLSearchParams(location.search).get('ref'); if(rf) localStorage.setItem('vv-ref',rf.slice(0,12)); }catch(e){}
+function refCode(){ try{ return localStorage.getItem('vv-ref')||null; }catch(e){ return null; } }
 function token(){ try{ return localStorage.getItem(TKEY)||''; }catch(e){ return ''; } }
 function setToken(t){ try{ if(t) localStorage.setItem(TKEY,t); else localStorage.removeItem(TKEY); }catch(e){} }
 async function rpc(fn, args, keep){
@@ -1051,7 +1238,7 @@ function gateView(v, msg){ $('gate').hidden = v==='open';
   if(msg!==undefined) $('gateMsg').textContent = msg; }
 async function join(e){ e.preventDefault(); const name=$('joinName').value.trim(); if(!name) return;
   $('joinBtn').disabled=true; $('gateMsg').textContent='';
-  try{ const r=await rpc('register',{p_name:name}); setToken(r.token); ME=r.id; await afterSync(await rpc('sync',{p_token:r.token}), true); }
+  try{ const r=await rpc('register',{p_name:name,p_ref:refCode()}); setToken(r.token); ME=r.id; await afterSync(await rpc('sync',{p_token:r.token}), true); }
   catch(err){ $('gateMsg').textContent=err.message; }
   $('joinBtn').disabled=false; }
 async function restore(e){ e.preventDefault(); const t=$('restoreIn').value.trim().toLowerCase(); if(!t) return;
@@ -1080,16 +1267,21 @@ async function afterSync(r, first){
   CONFIG={msg:r.msg||'',reset_at:+r.reset_at||0};
   $('notice').hidden=!CONFIG.msg; $('noticeText').textContent=CONFIG.msg;
   if(CONFIG.reset_at && CONFIG.reset_at>(S.resetAt||0)) doReset(CONFIG.reset_at);
-  let got=0; for(const g of r.gifts||[]){ const k='g'+g.id; if(S.claimed.indexOf(k)>=0 || (+g.at||0)<(S.resetAt||0)) continue; S.claimed.push(k); S.gems+=Math.floor(+g.gems||0); got+=Math.floor(+g.gems||0); }
-  if(got){ dirty=true; save(); toast('Cadeau van de spelleider: +'+got+' edelstenen',5000); refresh(); }
+  let got=0; const notes=[]; for(const g of r.gifts||[]){ const k='g'+g.id; if(S.claimed.indexOf(k)>=0 || (+g.at||0)<(S.resetAt||0)) continue; S.claimed.push(k); const n=Math.floor(+g.gems||0); S.gems+=n; if(g.note) notes.push(g.note+': +'+n+' edelstenen.'); else got+=n; }
+  for(const m of notes){ dirty=true; if(!reportAdd(m)) toast(m,6000); }
+  if(got){ dirty=true; save(); const m='Cadeau van de spelleider: +'+got+' edelstenen.'; if(!reportAdd(m)) toast(m,5000); refresh(); }
   if(r.topic && r.topic!==MYTOPIC){ MYTOPIC=r.topic; renderPush(); }
   if(r.attacks && r.attacks.length) incoming(r.attacks);
-  if(first){ renderAlfa(); if(OWNER) adminLoad(); showNews(); }
-  if(OWNER && Date.now()-adminT>20000) adminLoad();
+  INCOMING=(r.incoming||[]).map(x => ({by:x.by, arr:+x.arr - (+r.now||Date.now()) + Date.now()}));
+  if(+r.results>0) loadResults();
+  if(+r.inbox>0 && typeof loadInbox==='function') loadInbox();
+  if(first && typeof loadTour==='function') loadTour(false);
+  if(first){ renderAlfa(); showNews(); }
+  if(OWNER && Date.now()-adminT>60000) adminLoad();
 }
 async function sync(force){ const t=token(); if(!t || syncing) return; syncing=true;
   try{ const now=Date.now(), args={p_token:t};
-    if(STATUS==='approved'){ const sum={era:S.era,gems:S.gems,def:defence(S,now),bld:buildings(S),atk:attackPower(S,now),pr:S.pr||0}, js=JSON.stringify(sum); if(js!==lastSum || force){ args.p_stats=sum; lastSum=js; }
+    if(STATUS==='approved'){ const sum={era:S.era,gems:S.gems,def:defence(S,now),bld:buildings(S),atk:attackPower(S,now),pr:S.pr||0,army:army(S,now),hero:heroLv(S)}, js=JSON.stringify(sum); if(js!==lastSum || force){ args.p_stats=sum; lastSum=js; }
       if(dirty && (force || now-lastSave>45000)){ S.last=now; args.p_save=clone(S); dirty=false; lastSave=now; } }
     const r=await rpc('sync',args,force); await afterSync(r,false); netState = STATUS==='approved' ? 'aan' : netState; }
   catch(e){ if(STATUS==='approved') dirty=true; }
@@ -1101,51 +1293,26 @@ function renderAlfa(){ const st=$('alfaState'); if(!st) return;
     : netState==='fout' ? 'Geen verbinding met de server. Je spel wordt intussen op dit apparaat bewaard.' : 'Verbinden…';
   $('myCode').textContent = token() || '–';
   $('admin').hidden = !OWNER; loadIdeas(); loadRanks(); renderPush();
-  if(OWNER){ $('inviteWa').href=wa('Doe mee met mijn spel Van Vuursteen tot Vorst! Open '+siteUrl()+' en meld je aan. Ik laat je dan toe.'); renderPlayers(); } }
+  if(typeof crestHtml==='function' && STATUS==='approved'){ $('crestBox').innerHTML=crestHtml(); crestPreview(); renderTour(); renderInstall(); if(Date.now()-tourT>20000) loadTour(true); }
+  loadRef(); }
 async function loadIdeas(){ if(STATUS!=='approved') return; try{ IDEAS=await rpc('ideas_list',{p_token:token()})||[]; }catch(e){ return; } renderIdeas(); }
 function renderIdeas(){ const box=$('ideaList'); if(!box) return; box.textContent='';
   if(!IDEAS.length){ box.append(mk('p','hint','Nog geen ideeën. Wees de eerste.')); return; }
   for(const f of IDEAS){ const st=IDEA_ST[f.status]?f.status:'nieuw', row=mk('div','row'), h=mk('h3','',f.name||'Speler'); h.append(mk('i','',ago(+f.at||0)));
-    const pl=mk('p'); pl.append(mk('span','pill '+IDEA_ST[st][0],IDEA_ST[st][1])); row.append(h, mk('p','',String(f.text||'')), pl);
-    if(OWNER){ const a=mk('div','act'); for(const s2 of ['gepland','gebouwd','afgewezen','weg']){ if(s2===st) continue;
-        const b=mk('button','link', s2==='weg' ? 'Verwijder' : 'Markeer als '+s2); b.dataset.act='ideaSt'; b.dataset.arg=f.id+'|'+s2; a.append(b); } row.append(a); }
+    const pl=mk('p'); if(f.kind==='bug') pl.append(mk('span','pill bad','Bug'),document.createTextNode(' ')); pl.append(mk('span','pill '+IDEA_ST[st][0],IDEA_ST[st][1])); row.append(h, mk('p','',String(f.text||'')), pl);
     box.append(row); } }
 async function sendIdea(e){ e.preventDefault(); const box=$('ideaText'), msg=$('ideaMsg'), t=box.value.trim(); if(!t) return;
   $('ideaSend').disabled=true;
-  try{ await rpc('idea_add',{p_token:token(),p_text:t.slice(0,280)}); box.value=''; msg.textContent='Bedankt, je idee staat in de lijst.'; loadIdeas(); }
+  try{ const kind=$('ideaKind')?$('ideaKind').value:'idee'; await rpc('idea_add',{p_token:token(),p_text:t.slice(0,280),p_kind:kind}); box.value=''; msg.textContent= kind==='bug' ? 'Bedankt! De spelleider heeft je melding gekregen.' : 'Bedankt, je idee staat in de lijst.'; loadIdeas(); }
   catch(err){ msg.textContent=err.message; }
   $('ideaSend').disabled=false; }
 
 // --- game master
-async function adminLoad(){ if(!OWNER) return; adminT=Date.now();
-  try{ PLAYERS=await rpc('admin_players',{p_token:token()})||[]; }catch(e){ return; }
-  if(!TOPIC || CONFIG.site!==siteUrl()){ try{ const c=await rpc('admin_config',{p_token:token(),p_site:siteUrl()}); TOPIC=c.ntfy_topic; CONFIG.site=c.site_url;
-      $('ntfyLink').href='https://ntfy.sh/'+TOPIC; $('ntfyTopic').textContent=TOPIC; }catch(e){} }
-  const pend=PLAYERS.filter(p => p.status==='pending').length, tb=document.querySelector('.tabs [data-arg="a"]');
-  if(tb) tb.textContent = pend ? 'Spelers ('+pend+')' : 'Spelers';
-  renderPlayers(); }
-function renderPlayers(){ const req=$('reqList'), box=$('playerList'); if(!req || !box) return; req.textContent=''; box.textContent='';
-  const pend=PLAYERS.filter(p => p.status==='pending'), rest=PLAYERS.filter(p => p.status!=='pending');
-  if(!pend.length) req.append(mk('p','hint','Geen open aanmeldingen.'));
-  for(const p of pend){ const row=mk('div','row'); row.append(mk('h3','',p.name), mk('p','','Wil meedoen · aangemeld '+ago(+p.created)));
-    const a=mk('div','act'); const ok=mk('button','buy','Laat toe'); ok.dataset.act='grant'; ok.dataset.arg=p.id+'|approved';
-    const no=mk('button','buy','Wijs af'); no.dataset.act='grant'; no.dataset.arg=p.id+'|blocked'; a.append(ok,no); row.append(a); req.append(row); }
-  for(const p of rest){ const row=mk('div','row'), e=ERAS[+p.era]||ERAS[0], h=mk('h3','',p.name); if(p.is_admin) h.append(mk('i','','spelleider'));
-    row.append(h, mk('p','', p.status==='blocked' ? 'Afgewezen of geblokkeerd · '+ago(+p.seen) : `${e.name} · ${+p.gems||0} edelstenen · verdediging ${+p.def||0} · laatst gezien ${ago(+p.seen)}`));
-    if(!p.is_admin){ const a=mk('div','act');
-      if(p.status==='approved'){ const g=mk('button','buy','Geef edelstenen'); g.dataset.act='gift'; g.dataset.arg=p.id; const bl=mk('button','link','Blokkeer'); bl.dataset.act='grant'; bl.dataset.arg=p.id+'|blocked'; a.append(g,bl); }
-      else { const ok=mk('button','link','Toch toelaten'); ok.dataset.act='grant'; ok.dataset.arg=p.id+'|approved'; const del=mk('button','link','Verwijder'); del.dataset.act='grant'; del.dataset.arg=p.id+'|delete'; a.append(ok,del); }
-      row.append(a); }
-    box.append(row); } }
-async function grantUser(arg){ const [id,st]=arg.split('|');
-  try{ await rpc('admin_set_status',{p_token:token(),p_player:id,p_status:st}); toast(st==='approved'?'Speler toegelaten':st==='blocked'?'Speler geblokkeerd':'Speler verwijderd'); adminLoad(); }
-  catch(e){ toast(e.message); } }
-async function sendGift(to){ const n=+$('giftAmt').value||50;
-  try{ await rpc('admin_gift',{p_token:token(),p_player:to==='all'?null:to,p_gems:n}); toast(to==='all' ? 'Alle spelers krijgen '+n+' edelstenen' : 'Cadeau van '+n+' edelstenen verstuurd'); }
-  catch(e){ toast(e.message); } }
-async function setIdea(arg){ const [id,st]=arg.split('|'); try{ await rpc('admin_idea',{p_token:token(),p_id:+id,p_status:st}); loadIdeas(); }catch(e){ toast(e.message); } }
-async function sendNotice(e){ e.preventDefault(); try{ const c=await rpc('admin_config',{p_token:token(),p_msg:$('msgText').value.trim().slice(0,200)}); CONFIG.msg=c.msg;
-    $('notice').hidden=!c.msg; $('noticeText').textContent=c.msg; toast('Mededeling bijgewerkt'); }catch(err){ toast(err.message); } }
+async function adminLoad(){ if(!OWNER) return; adminT=Date.now(); let s=null;
+  try{ s=await rpc('admin_stats',{p_token:token()}); }catch(e){ return; }
+  if(s.site!==siteUrl()){ rpc('admin_config',{p_token:token(),p_site:siteUrl()}).catch(()=>{}); }
+  const tb=document.querySelector('.tabs [data-arg="a"]'); if(tb) tb.textContent = +s.pending ? 'Spelers ('+s.pending+')' : 'Spelers';
+  const el=$('adminInfo'); if(el) el.textContent = `${s.total} spelers · ${s.pending} wachten op toegang · ${s.bugs_new} nieuwe bugs · ${s.ideas_new} nieuwe ideeën`; }
 function doReset(at){ const had=S.era>0||buildings(S)>0; S=newState(Date.now()); S.resetAt=at; WORKERS.length=0; AFTER=null; CAM=null; open=true; tab='b'; dirty=true; save(); render(); if(had) toast('De spelleider heeft het spel opnieuw gestart. Iedereen begint weer in de Steentijd.',7000); }
 async function adminReset(all){ const key=all?'all':'me', now=Date.now(), btn=$(all?'resetAll':'resetMe'), label=all?'Reset het spel voor iedereen':'Reset alleen mijn spel';
   if(confirmAct!==key || now-confirmT>6000){ confirmAct=key; confirmT=now; btn.textContent='Tik nogmaals om te bevestigen'; setTimeout(() => { if(confirmAct===key && Date.now()-confirmT>=5900){ confirmAct=''; btn.textContent=label; } },6000); return; }
@@ -1161,61 +1328,36 @@ async function loadRanks(){ if(STATUS!=='approved') return; rankT=Date.now();
 function renderRanks(){ const box=$('rankList'); if(!box) return; box.textContent='';
   if(!RANKS.length){ box.append(mk('p','hint','Nog geen spelers.')); return; }
   RANKS.forEach((p,i) => { const e=ERAS[+p.era]||ERAS[0], row=mk('div','row rank'+(p.me?' mine':'')), h=mk('h3');
-    h.append(mk('span','pos num',String(i+1)), document.createTextNode(p.name)); if(p.me) h.append(mk('i','','jij'));
+    h.append(mk('span','pos num',String(i+1))); if(p.crest && typeof crestImg==='function') h.append(crestImg(p.crest,20)); h.append(document.createTextNode(p.name));
+    if(p.me && p.crest && typeof MYCREST!=='undefined' && !MYCREST) MYCREST=p.crest; if(p.me) h.append(mk('i','','jij'));
     const bar=mk('span','erabar'); const fill=mk('i'); fill.style.width=Math.round((+p.era+1)/ERAS.length*100)+'%'; bar.append(fill);
-    row.append(h, mk('p','',`${e.name} · ${+p.bld||0} gebouwen · verdediging ${+p.def||0} · actief ${ago(+p.seen)}`), bar);
+    row.append(h, mk('p','',`${typeof titleOf==='function'?titleOf(p)+' · ':''}${e.name} · ${+p.bld||0} gebouwen · verdediging ${+p.def||0} · actief ${ago(+p.seen)}`), bar);
     const a=mk('div','act');
     if(!p.me && p.has){ const b=mk('button','buy','Bekijk dorp'); b.dataset.act='view'; b.dataset.arg=p.id; a.append(b); }
-    if(!p.me){ const now=Date.now(), my=attackPower(S,now), st=attackState(p,now);
-      const b=mk('button','buy','Val aan'); b.dataset.act='attack'; b.dataset.arg=p.id; b.id='atk-'+p.id; if(st) b.disabled=true; a.append(b);
-      a.append(mk('span','cost atk', st || `Jouw aanval ${my} tegen hun verdediging ${+p.def||0}. Kans: ${my>p.def*1.15?'groot':my>p.def*.85?'gelijk':'klein'}.`)); }
+    if(!p.me){ const b=mk('button','buy','Op de kaart'); b.dataset.act='worldAt'; b.dataset.arg=p.id; a.append(b); }
     if(a.children.length) row.append(a);
     box.append(row); }); }
-async function viewVillage(id){ const p=RANKS.find(x => x.id===id);
+async function viewVillage(id){ const p=RANKS.find(x => x.id===id) || (WORLD && WORLD.players.find(x => x.id===id)); WORLD_ON=false; WSEL=null; document.querySelector('.viewbar .zoom').style.display='none';
   try{ const d=await rpc('player_village',{p_token:token(),p_player:id}); if(!d){ toast('Dit dorp is nog niet te bekijken.'); return; }
     const v=hydrate(Object.assign({},d,{res:{}}),Date.now()); v.raid=null; VIEW_S=v; VIEW_NAME=p?p.name:'';
     WORKERS.length=0; CAM=null; open=false; render();
-    $('viewText').textContent=`Dorp van ${VIEW_NAME} · ${ERAS[v.era].name}`; $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true; }
+    $('viewText').textContent=`Dorp van ${VIEW_NAME} · ${ERAS[v.era].name}`; $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true; $('worldBtn').hidden=true; }
   catch(e){ toast(e.message); } }
-function endView(){ VIEW_S=null; WORKERS.length=0; CAM=null; $('viewBar').hidden=true; $('chips').hidden=false; $('tapBtn').hidden=false; render(); }
+function endView(){ VIEW_S=null; WORKERS.length=0; CAM=null; $('viewBar').hidden=true; $('chips').hidden=false; $('tapBtn').hidden=false; $('worldBtn').hidden=false; render(); }
 setInterval(() => { if(open && tab==='a' && STATUS==='approved' && Date.now()-rankT>30000) loadRanks(); }, 5000);
 
-// --- attacking other players
-let MYTOPIC='', lastAttack=0, atkConfirm={id:'',t:0}, atkBusy=false;
-try{ lastAttack=+localStorage.getItem('vv-lastatk')||0; }catch(e){}
-function attackState(p,now){
-  if(S.era<2) return 'Aanvallen kan vanaf de IJzertijd.';
-  if(!S.guards) return 'Werf eerst wachters bij Verdedig.';
-  if(+p.era<2) return 'Nog beschermd tot hun IJzertijd.';
-  if(+p.shield>now) return 'Net geplunderd, beschermd tot '+new Date(+p.shield).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+'.';
-  if(now-lastAttack<600000) return 'Je leger rust nog '+fmtLeft(600000-(now-lastAttack))+'.';
-  if(ATTACK || VIEW_S) return 'Er loopt al een aanval.';
-  return ''; }
-async function attackPlayer(id){ const p=RANKS.find(x => x.id===id); if(!p || atkBusy) return; const now=Date.now(), b=$('atk-'+id);
-  if(atkConfirm.id!==id || now-atkConfirm.t>6000){ atkConfirm={id,t:now}; if(b) b.textContent='Tik nogmaals: val aan'; return; }
-  atkConfirm={id:'',t:0}; atkBusy=true;
-  try{ await sync(true); const r=await rpc('attack',{p_token:token(),p_target:id}); lastAttack=Date.now(); try{ localStorage.setItem('vv-lastatk',String(lastAttack)); }catch(e){}
-    let d=null; try{ d=await rpc('player_village',{p_token:token(),p_player:id}); }catch(e){}
-    const v=hydrate(Object.assign({},d||{era:p.era},{res:{}}),Date.now()); v.raid=null; VIEW_S=v; VIEW_NAME=p.name;
-    WORKERS.length=0; CAM=null; open=false; render();
-    $('viewText').textContent=`Aanval op ${p.name}: jouw ${r.atk} tegen hun ${r.def}`; $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true;
-    const n=Math.min(12,3+Math.ceil(S.guards/3));
-    // the result is already decided by the server; apply it now, show it when the fight ends
-    const lootMul=1+tb(S,'loot'), lg=Math.floor((+(r.loot&&r.loot.gold)||0)*lootMul), lf=Math.floor((+(r.loot&&r.loot.food)||0)*lootMul), lostG=Math.ceil(S.guards*(r.won?.1:.3));
-    S.guards=Math.max(0,S.guards-lostG); if(r.won){ S.res.gold+=lg; S.res.food+=lf; } dirty=true; save();
-    ATTACK={t0:Date.now(),dur:14,n,str:r.atk,def:r.def,defWon:!r.won,team:{era:S.era,flag:S.flag},
-      done(){ toast(r.won ? `Gewonnen! Buit: ${fmt(lg)} goud en ${fmt(lf)} voedsel. Je verloor ${lostG} wachters.` : `De aanval op ${p.name} is mislukt. Je verloor ${lostG} wachters.`,7000);
-        setTimeout(() => { if(VIEW_S && VIEW_NAME===p.name) endView(); loadRanks(); }, 1500); } }; }
-  catch(e){ toast(e.message,5000); }
-  atkBusy=false; }
+let MYTOPIC='', INCOMING=[];
 // attacks on my village while I was away (or just now): apply, show a replay, then acknowledge
 function incoming(list){ const ids=[]; let msgs=[];
   for(const a of list){ ids.push(a.id);
     if(a.won){ const lg=Math.min(S.res.gold, +(a.loot&&a.loot.gold)||0), lf=Math.min(S.res.food, +(a.loot&&a.loot.food)||0), lo=Math.ceil(S.guards*.1);
-      S.res.gold-=lg; S.res.food-=lf; S.guards=Math.max(0,S.guards-lo); msgs.push(`${a.by} heeft je dorp geplunderd: ${fmt(lg)} goud en ${fmt(lf)} voedsel kwijt.`); }
-    else msgs.push(`${a.by} viel je aan, maar je verdediging hield stand (${a.def} tegen ${a.atk}).`); }
+      S.res.gold-=lg; S.res.food-=lf; S.guards=Math.max(0,S.guards-lo); for(const k of ['arc','cav','sie']) S.u[k]=Math.max(0,S.u[k]-Math.ceil(S.u[k]*.1)); heroXp(S,10);
+      msgs.push(`${a.by} heeft je dorp geplunderd: ${fmt(lg)} goud en ${fmt(lf)} voedsel kwijt. Wraak nemen kan de komende 2 uur via de wereldkaart.`); }
+    else { heroXp(S,25); if(typeof tcount==='function') tcount('wins',1); msgs.push(`${a.by} viel je aan, maar je verdediging hield stand (${a.def} tegen ${a.atk}).`); } }
+  if(typeof reportAdd==='function') msgs.forEach(m => reportAdd(m));
   dirty=true; save(); rpc('raids_ack',{p_token:token(),p_ids:ids}).catch(()=>{});
   const last=list[list.length-1];
+  WORLD_ON=false;
   if(!VIEW_S && !REPLAY){ REPLAY={t0:Date.now()+600,dur:14,n:Math.min(12,4+Math.round(Math.log2((+last.atk||1)+1))),str:+last.atk,def:+last.def,defWon:!last.won,
       done(){ toast(msgs.join(' '),8000); $('replayBar').hidden=true; $('chips').hidden=false; }};
     $('replayBar').textContent=(list.length>1?list.length+' aanvallen terwijl je weg was · ':'')+'Herhaling: '+last.by+' valt je dorp aan'; $('replayBar').hidden=false; $('chips').hidden=true; open=false; render(); }
@@ -1235,6 +1377,259 @@ function showNews(){ let seen=''; try{ seen=localStorage.getItem('vv-version')||
   if(seen===GAME_VERSION) return; try{ localStorage.setItem('vv-version',GAME_VERSION); }catch(e){}
   if(!seen && buildings(S)===0 && S.era===0) return;
   const ul=$('newsList'); ul.textContent=''; for(const n of NEWS) ul.append(mk('li','',n)); $('news').hidden=false; }
+
+// ---- world map (online build): all villages, barbarian camps and ruins on one map; armies take time to travel
+const WT=34, WN=40;
+let WORLD=null, WORLD_ON=false, WCAM=null, WSEL=null, WHITS=[], wLoad=0, wDrag=null, marchBusy=false, RESULTQ=[];
+function campArmy(lv){ const p=Math.pow(2.6,lv-1); return {inf:[0,Math.round(12*p)],arc:[0,Math.round(8*p)],cav:[0,lv>=3?Math.round(6*p):0],sie:[0,0],w:Math.round(10*p)}; }
+function travelSecs(dist,kind,rev){ let s=Math.min(600,45+Math.round(dist*12)); if(rev) s=Math.floor(s/2); if(kind==='scout') s*=2; return s; }
+function meW(){ return WORLD && WORLD.players.find(p => p.me); }
+function distTo(o){ const m=meW(); return m ? Math.hypot(o.x-m.x,o.y-m.y) : 0; }
+const TITLE_BY_ERA=['Stamhoofd','Stamhoofd','Opperhoofd','Heer','Baron','Graaf','Hertog','Vorst','President','Keizer'];
+function titleOf(p){ const t=TITLE_BY_ERA[Math.min(9,+p.era||0)]; return (+p.pr>0?'Groot-':'')+t.toLowerCase().replace(/^./,c=>c.toUpperCase()); }
+
+async function loadWorld(){ if(STATUS!=='approved') return; wLoad=Date.now();
+  try{ const w=await rpc('world',{p_token:token()}); if(!w) return; const skew=Date.now()-(+w.now||Date.now());
+    for(const m of w.marches){ m.dep+=skew; m.arr+=skew; } for(const x of w.sites) x.busy+=skew; for(const p of w.players) if(+p.shield) p.shield+=skew;
+    WORLD=w; if(WSEL) WSEL=findSel(WSEL.type,WSEL.id); if(open && tab==='w') render(); }catch(e){} }
+function findSel(type,id){ if(!WORLD) return null; const o = type==='player' ? WORLD.players.find(p => p.id===id) : WORLD.sites.find(x => String(x.id)===String(id)); return o ? {type,id,o} : null; }
+async function openWorld(focusId){ if(STATUS!=='approved'){ toast('De wereldkaart is er zodra je bent toegelaten.'); return; }
+  VIEW_S=null; $('viewBar').hidden=true; WORLD_ON=true; WSEL=null; open=false; $('chips').hidden=true; $('tapBtn').hidden=true; $('worldBtn').hidden=true;
+  $('viewText').textContent='Wereldkaart'; $('viewBar').hidden=false; document.querySelector('.viewbar .zoom').style.display='flex'; render(); await loadWorld();
+  const f = focusId ? WORLD && WORLD.players.find(p => p.id===focusId) : meW(); if(f) WCAM={x:(f.x+.5)*WT,y:(f.y+.5)*WT,z:WCAM?WCAM.z:1.6};
+  if(focusId){ WSEL=findSel('player',focusId); if(WSEL){ tab='w'; open=true; render(); } } }
+function closeWorld(){ document.querySelector('.viewbar .zoom').style.display='none'; WORLD_ON=false; WSEL=null; $('chips').hidden=false; $('tapBtn').hidden=false; $('worldBtn').hidden=false; $('viewBar').hidden=true; if(tab==='w') open=false; render(); }
+
+function worldHtml(){ const now=Date.now(); if(!WORLD) return '<p class="hint">De kaart wordt geladen…</p>';
+  const busy=WORLD.marches.find(m => m.mine && m.kind!=='scout'), scouting=WORLD.marches.find(m => m.mine && m.kind==='scout'), myA=army(S,now), myAtk=attackPower(S,now);
+  let h='';
+  if(busy) h+=`<p class="hint">Je leger is onderweg en komt aan over <b class="num" data-arr="${busy.arr}"></b>.</p>`;
+  if(!WSEL) return h+`<p class="hint">Sleep over de kaart en tik op een dorp, een barbarenkamp of een ruïne. Hoe verder weg, hoe langer je leger onderweg is.</p>`+marchList();
+  const o=WSEL.o, d=distTo(o);
+  if(WSEL.type==='player' && typeof giftTo!=='undefined' && giftTo && giftTo.id===o.id) return h+giftHtml()+`<div class="act"><button class="link" data-act="giftTo" data-arg="">Terug</button></div>`;
+  if(WSEL.type==='player'){ const e=ERAS[+o.era]||ERAS[0], shield=+o.shield>now, rev=!!o.revenge;
+    h+=`<div class="row"><h3>${esc(o.name)}<i>${titleOf(o)}${+o.pr?' · '+o.pr+' kronen':''}</i></h3><p>${e.name} · verdediging ${+o.def||0}${+o.hero?' · held niveau '+o.hero:''}</p>`;
+    if(o.me) return h+'<p class="hint">Dit is jouw dorp.</p></div>';
+    const secs=travelSecs(d,'player',rev), why = S.era<2 ? 'Aanvallen kan vanaf de IJzertijd.' : !armySize(S) ? 'Train eerst een leger bij Verdedig.' : +o.era<2 ? 'Nog beschermd tot hun IJzertijd.'
+      : busy ? 'Je leger is al onderweg.' : (shield && !rev) ? 'Net geplunderd, beschermd tot '+new Date(+o.shield).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+'.' : '';
+    h+=`<p>Reistijd ${fmtLeft(secs*1000)} · jouw aanval ${myAtk}${rev?' + 25% wraakbonus':''} tegen hun verdediging ${+o.def||0}. Kans: ${chance(myAtk*(rev?1.25:1),+o.def||0)}.</p>`;
+    h+=`<div class="act">${rev?`<button class="buy" data-act="march" data-arg="player|${o.id}|1" ${why&&!(!busy&&armySize(S))?'disabled':''}>Neem wraak</button>`:''}<button class="buy" data-act="march" data-arg="player|${o.id}|0" ${why?'disabled':''}>Val aan</button><button class="buy" data-act="view" data-arg="${o.id}">Bekijk dorp</button>${typeof giftBtn==='function'?giftBtn(o):''}</div>${why?`<p class="hint">${why}</p>`:''}</div>`;
+    return h; }
+  if(o.kind==='camp'){ const b=battle(myA,campArmy(o.lv)), why = S.era<2 ? 'Aanvallen kan vanaf de IJzertijd.' : !armySize(S) ? 'Train eerst een leger bij Verdedig.' : busy ? 'Je leger is al onderweg.' : +o.busy>now ? 'Er is hier net gevochten. Kom over '+fmtLeft(+o.busy-now)+' terug.' : '';
+    return h+`<div class="row"><h3>Barbarenkamp<i>niveau ${o.lv}</i></h3><p>Barbaren met speren en bogen${o.lv>=3?' en ruiters':''}, achter een palissade. Winst geeft goud, voedsel${o.lv>=5?', een edelsteen':''} en ervaring voor je held.</p>
+      <p>Reistijd ${fmtLeft(travelSecs(d,'camp')*1000)} · jouw aanval ${b.atk} tegen hun verdediging ${b.def}. Kans: ${chance(b.atk,b.def)}.</p>
+      <div class="act"><button class="buy" data-act="march" data-arg="camp|${o.id}|0" ${why?'disabled':''}>Val aan</button></div>${why?`<p class="hint">${why}</p>`:''}</div>`; }
+  const why2 = scouting ? 'Je verkenner is al op pad.' : +o.busy>now ? 'Een andere verkenner is hier al. Kom over '+fmtLeft(+o.busy-now)+' terug.' : '';
+  return h+`<div class="row"><h3>Ruïne</h3><p>Oude resten van een verdwenen dorp. Stuur een verkenner: hij vindt misschien een schat, edelstenen, vrijwilligers of een strijdboek voor je held.</p>
+    <p>Reistijd heen en terug ${fmtLeft(travelSecs(d,'scout')*1000)}.</p><div class="act"><button class="buy" data-act="march" data-arg="scout|${o.id}|0" ${why2?'disabled':''}>Stuur verkenner</button></div>${why2?`<p class="hint">${why2}</p>`:''}</div>`; }
+function chance(a,d){ return a>d*1.2?'groot':a>d*.9?'gelijk':'klein'; }
+function esc(t){ return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function marchList(){ if(!WORLD || !WORLD.marches.length) return ''; let h='<h3 class="sub">Onderweg</h3>';
+  for(const m of WORLD.marches){ const what = m.kind==='scout' ? 'verkenner' : 'leger', who = m.mine ? 'Jouw '+what : (m.vsme ? esc(m.by)+' valt jou aan' : 'Het '+what+' van '+esc(m.by));
+    h+=`<p class="hint ${m.vsme?'bad':''}">${who} · aankomst over <b class="num" data-arr="${m.arr}"></b></p>`; } return h; }
+
+async function sendMarch(arg){ if(marchBusy) return; const [kind,id,rev]=arg.split('|'); marchBusy=true;
+  try{ await sync(true); const r=await rpc('march',{p_token:token(),p_kind:kind,p_target:kind==='player'?id:null,p_site:kind==='player'?null:+id,p_revenge:rev==='1'});
+    toast((kind==='scout'?'Je verkenner vertrekt.':r.revenge?'Je leger trekt ten strijde voor wraak!':'Je leger is vertrokken.')+' Aankomst over '+fmtLeft(r.secs*1000)+'.',5000);
+    WSEL=null; await loadWorld(); render(); }
+  catch(e){ toast(e.message,5000); }
+  marchBusy=false; }
+// results of my own marches: apply them, then show the fight when there is one
+async function loadResults(){ let L=[]; try{ L=await rpc('my_results',{p_token:token()})||[]; }catch(e){ return; }
+  for(const r of L){ const now=Date.now(), lootMul=1+tb(S,'loot'), g=gross(S,now), rw=r.reward||{}, lost={};
+    const loss = r.kind==='scout' ? 0 : r.kind==='camp' ? (r.won?.05:.25) : (r.won?.1:.3);
+    for(const x of UNITS){ const n=ucount(S,x.id), l=Math.ceil(n*loss); if(l){ uset(S,x.id,n-l); lost[x.id]=l; } }
+    const lostTxt=Object.keys(lost).length ? ' Je verloor '+UNITS.filter(x=>lost[x.id]).map(x=>lost[x.id]+' '+unitName(x,S.era).toLowerCase()).join(', ')+'.' : '';
+    let msg='';
+    if(r.kind==='player'){ const lg=Math.floor((+(r.loot&&r.loot.gold)||0)*lootMul), lf=Math.floor((+(r.loot&&r.loot.food)||0)*lootMul);
+      if(r.won){ S.res.gold+=lg; S.res.food+=lf; if(typeof tcount==='function') tcount('wins',1); } heroXp(S, r.won?50:15);
+      msg = r.won ? `Je hebt ${esc(r.name)} verslagen! Buit: ${fmt(lg)} goud en ${fmt(lf)} voedsel.${lostTxt}` : `De aanval op ${esc(r.name)} is mislukt (${r.atk} tegen ${r.def}).${lostTxt}`; }
+    else if(r.kind==='camp'){ const sec=60+30*(+r.lv||1); let lg=0, lf=0;
+      if(r.won){ lg=Math.max(+rw.gold||0, Math.round(g.gold*sec)); lf=Math.max(+rw.food||0, Math.round(g.food*sec)); S.res.gold+=lg; S.res.food+=lf; S.gems+=(+rw.gems||0); if(typeof tcount==='function') tcount('wins',1); }
+      heroXp(S,+rw.xp||0);
+      msg = r.won ? `Barbarenkamp niveau ${r.lv} veroverd! Buit: ${fmt(lg)} goud en ${fmt(lf)} voedsel${+rw.gems?' en '+rw.gems+' edelsteen':''}.${lostTxt}` : `Je leger is teruggeslagen door de barbaren (${r.atk} tegen ${r.def}).${lostTxt}`; }
+    else { let what=String(rw.what||'iets bijzonders'), extra='';
+      if(+rw.gems){ S.gems+=+rw.gems; extra=' (+'+rw.gems+' edelstenen)'; }
+      if(+rw.units){ S.guards+=+rw.units; extra=' (+'+rw.units+' '+unitName(UNITBY.inf,S.era).toLowerCase()+')'; }
+      if(+rw.xp){ heroXp(S,+rw.xp); extra=S.hero?' (+'+rw.xp+' ervaring voor '+esc(S.hero.name)+')':' (bewaar het voor als je een held hebt)'; }
+      if(+rw.gold_s){ const v=Math.round(g.gold*(+rw.gold_s)+500); S.res.gold+=v; extra=' (+'+fmt(v)+' goud)'; }
+      msg=`Je verkenner is terug en vond ${what}${extra}.`; }
+    dirty=true; save(); RESULTQ.push({r,msg}); }
+  playResults(); }
+async function playResults(){ if(ATTACK || REPLAY || !RESULTQ.length) return; const {r,msg}=RESULTQ.shift();
+  if(r.kind==='scout'){ toast(msg,7000); setTimeout(playResults,1500); return; }
+  let v=null;
+  if(r.kind==='player'){ const p=WORLD && WORLD.players.find(x => x.name===r.name);
+    if(p){ try{ const d=await rpc('player_village',{p_token:token(),p_player:p.id}); if(d) v=hydrate(Object.assign({},d,{res:{}}),Date.now()); }catch(e){} } }
+  if(!v){ v=newState(Date.now()); v.era=Math.max(2,S.era); v.wall=r.kind==='camp'?1:2; v.guards=Math.min(8,2+(+r.lv||2)); v.towers=r.kind==='camp'?Math.min(4,+r.lv||1):2; v.b.barracks=2; }
+  v.raid=null; WORLD_ON=false; document.querySelector('.viewbar .zoom').style.display='none'; VIEW_S=v; VIEW_NAME=r.name||'Barbarenkamp'; WORKERS.length=0; CAM=null; open=false; render();
+  $('viewText').textContent = r.kind==='camp' ? `Aanval op barbarenkamp niveau ${r.lv}` : `Aanval op ${r.name}: jouw ${r.atk} tegen hun ${r.def}`;
+  $('viewBar').hidden=false; $('chips').hidden=true; $('tapBtn').hidden=true; $('worldBtn').hidden=true;
+  ATTACK={t0:Date.now(),dur:14,n:Math.min(12,3+Math.ceil(armySize(S)/3)),str:r.atk,def:r.def,defWon:!r.won,team:{era:S.era,flag:S.flag,mix:Array.from({length:12},(_,k)=>unitOf(S,k,12))},
+    done(){ toast(msg,8000); setTimeout(() => { if(VIEW_S && !ATTACK) endView(); playResults(); }, 1500); }}; }
+
+// drawing the world map
+function drawWorld(c,w,h,dpr,t){ if(!WCAM) WCAM={x:WN*WT/2,y:WN*WT/2,z:1.6}; const z=WCAM.z, ox=w/2-WCAM.x*z, oy=h/2-WCAM.y*z;
+  c.setTransform(dpr,0,0,dpr,0,0); c.fillStyle='#27ae60'; c.fillRect(0,0,w,h);
+  c.setTransform(dpr*z,0,0,dpr*z,dpr*ox,dpr*oy);
+  const i0=Math.max(-2,Math.floor(-ox/z/WT)-1), i1=Math.min(WN+1,Math.ceil((w-ox)/z/WT)+1), j0=Math.max(-2,Math.floor(-oy/z/WT)-1), j1=Math.min(WN+1,Math.ceil((h-oy)/z/WT)+1);
+  c.fillStyle='#2fb966'; for(let j=j0;j<j1;j++) for(let i=i0;i<i1;i++) if((i+j)&1) c.fillRect(i*WT,j*WT,WT,WT);
+  c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=3; c.strokeRect(0,0,WN*WT,WN*WT);
+  if(!WORLD) return;
+  const occ={}; for(const p of WORLD.players) occ[p.x+','+p.y]=1; for(const x of WORLD.sites) occ[x.x+','+x.y]=1;
+  for(let j=j0;j<j1;j++) for(let i=i0;i<i1;i++){ if(i<0||j<0||i>=WN||j>=WN) continue; const r=h2(i+7,j+3); if(r>.42 || occ[i+','+j]) continue;
+    worldSpr(c, r<.2?'treePine_large':'treeRound_large', (i+.5)*WT+(h2(j,i)-.5)*10, (j+.9)*WT, WT*.55); }
+  const now=Date.now(); WHITS=[];
+  for(const m of WORLD.marches){ const k=Math.max(0,Math.min(1,(now-m.dep)/Math.max(1,m.arr-m.dep))), fx=(m.fx+.5)*WT, fy=(m.fy+.5)*WT, tx=(m.tx+.5)*WT, ty=(m.ty+.5)*WT;
+    c.strokeStyle = m.vsme ? 'rgba(232,80,60,.95)' : m.mine ? 'rgba(240,197,78,.95)' : 'rgba(255,255,255,.7)'; c.lineWidth=2.5; c.setLineDash([7,6]); c.beginPath(); c.moveTo(fx,fy); c.lineTo(tx,ty); c.stroke(); c.setLineDash([]);
+    const x=fx+(tx-fx)*k, y=fy+(ty-fy)*k; person(c,x,y+6, m.kind==='scout' ? {era:S.era,body:'#6b8f3a',legs:'#3a2a1c',hat:'hood',walk:t*10,sc:1.3} : {era:S.era,body:m.vsme?'#8a2a20':'#59677a',legs:'#2e3440',hat:'helm',tool:'spear',shield:m.vsme?'#b3261e':'#f0c54e',walk:t*10,sc:1.4}); }
+  for(const x of WORLD.sites){ const cx=(x.x+.5)*WT, cy=(x.y+.5)*WT, faded=+x.busy>now; c.globalAlpha=faded?.5:1;
+    if(x.kind==='camp'){ worldSpr(c,'militaryTent',cx-6,cy+10,WT*1.15); worldSpr(c,'banner',cx+14,cy+12,WT*.45); }
+    else worldSpr(c,'ruinsCorner',cx,cy+10,WT*1.1);
+    c.globalAlpha=1; label(c,cx,cy+22, x.kind==='camp' ? 'Kamp nv '+x.lv : 'Ruïne', x.kind==='camp'?'#5a1a12':'#3a3226');
+    WHITS.push({type:'site',id:x.id,x:cx,y:cy,r:WT*.8}); }
+  for(const p of WORLD.players){ const cx=(p.x+.5)*WT, cy=(p.y+.5)*WT, L=CENTER[Math.min(+p.era||0,CENTER.length-1)];
+    if(p.me){ c.strokeStyle='#f0c54e'; c.lineWidth=3; c.beginPath(); c.ellipse(cx,cy+8,WT*1.05,WT*.62,0,0,6.2832); c.stroke(); }
+    if(+p.shield>now){ c.strokeStyle='rgba(120,190,255,.9)'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,WT*1.15,0,6.2832); c.stroke(); }
+    worldSpr(c,L[0],cx,cy+12,WT*1.6);
+    label(c,cx,cy+26,(p.me?'Jij · ':'')+p.name, p.me?'#6b4a10':'#1b140c');
+    if(p.crest && typeof drawCrest==='function') drawCrest(c,p.crest,cx+WT*.75,cy-WT*.55,15);
+    if(p.revenge) label(c,cx,cy-30,'Wraak!','#b3261e');
+    WHITS.push({type:'player',id:p.id,x:cx,y:cy,r:WT*.95}); }
+  if(WSEL){ const o=WSEL.o, cx=(o.x+.5)*WT, cy=(o.y+.5)*WT; c.strokeStyle='#fff3e4'; c.lineWidth=2.5; c.setLineDash([5,4]); c.beginPath(); c.arc(cx,cy+4,WT*1.25,0,6.2832); c.stroke(); c.setLineDash([]); }
+  MAPT={z,ox,oy}; }
+function worldSpr(c,name,x,y,w){ const a=ATLAS[name]; if(!a) return; const k=w/(a[2]*K); spr(c,name,x,y,k); }
+function label(c,x,y,text,col){ c.font='800 11px "Alegreya Sans",system-ui,sans-serif'; const w=c.measureText(text).width+10;
+  c.fillStyle='rgba(255,250,235,.92)'; c.beginPath(); if(c.roundRect) c.roundRect(x-w/2,y-7,w,14,7); else c.rect(x-w/2,y-7,w,14); c.fill();
+  c.fillStyle=col; c.textAlign='center'; c.textBaseline='middle'; c.fillText(text,x,y+.5); }
+function worldTap(sx,sy){ const wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z; let best=null, bd=1e9;
+  for(const h of WHITS){ const d=Math.hypot(h.x-wx,h.y-wy); if(d<h.r && d<bd){ bd=d; best=h; } }
+  WSEL = best ? findSel(best.type==='site'?'site':'player', best.id) : null; tab='w'; open=!!WSEL || open; render(); }
+function worldPointer(){ const cv=$('map');
+  cv.addEventListener('pointerdown', e => { if(!WORLD_ON) return; wDrag={x:e.clientX,y:e.clientY,cx:WCAM.x,cy:WCAM.y,moved:false}; });
+  cv.addEventListener('pointermove', e => { if(!WORLD_ON || !wDrag) return; const dx=e.clientX-wDrag.x, dy=e.clientY-wDrag.y; if(Math.abs(dx)+Math.abs(dy)>6) wDrag.moved=true;
+    WCAM.x=Math.max(0,Math.min(WN*WT, wDrag.cx-dx/WCAM.z)); WCAM.y=Math.max(0,Math.min(WN*WT, wDrag.cy-dy/WCAM.z)); });
+  window.addEventListener('pointerup', () => { if(wDrag) setTimeout(() => { wDrag=null; },0); });
+  cv.addEventListener('wheel', e => { if(!WORLD_ON) return; e.preventDefault(); WCAM.z=Math.max(.6,Math.min(3,WCAM.z*(e.deltaY<0?1.15:.87))); }, {passive:false}); }
+function worldZoom(f){ if(WCAM) WCAM.z=Math.max(.6,Math.min(3,WCAM.z*f)); }
+setInterval(() => { if(WORLD_ON && Date.now()-wLoad>15000) loadWorld();
+  const bar=$('incBar'); if(!bar) return; const now=Date.now(), inc=INCOMING.filter(x => x.arr>now-2000).sort((a,b)=>a.arr-b.arr);
+  bar.hidden=!inc.length; if(inc.length) bar.textContent=`${inc[0].by} valt je aan! Aankomst over ${fmtLeft(Math.max(0,inc[0].arr-now))}. Versterk je verdediging.`;
+  document.querySelectorAll('[data-arr]').forEach(n => { n.textContent=fmtLeft(Math.max(0,+n.dataset.arr-now)); }); }, 500);
+
+// ---- social (online build): weekend tournament, gifts between players, coat of arms and title
+let TOUR=null, tourT=0, tourSent=-1, giftTo=null;
+const TOUR_KIND={gold:{name:'Goudkoorts',goal:'wie verzamelt het meeste goud',unit:'goud'},build:{name:'Bouwwoede',goal:'wie bouwt en upgradet het meest',unit:'gebouwen'},wins:{name:'Strijdtoernooi',goal:'wie wint de meeste gevechten',unit:'overwinningen'}};
+function tcount(kind,n){ if(!TOUR || !TOUR.cur.active) return; if(!S.tc || S.tc.tid!==TOUR.cur.tid) S.tc={tid:TOUR.cur.tid,gold:0,build:0,wins:0}; S.tc[kind]=(S.tc[kind]||0)+n; }
+function tscore(){ return TOUR && S.tc && S.tc.tid===TOUR.cur.tid ? Math.floor(S.tc[TOUR.cur.kind]||0) : 0; }
+async function loadTour(send){ if(STATUS!=='approved') return; tourT=Date.now(); const sc=tscore();
+  try{ const r=await rpc('tournament',{p_token:token(),p_score:(send && sc!==tourSent) ? sc : null}); if(!r) return; const skew=Date.now()-(+r.now||Date.now());
+    r.cur.start+=skew; r.cur.end+=skew; TOUR=r; if(send) tourSent=sc; if(open && tab==='a') renderTour(); }catch(e){} }
+function renderTour(){ const box=$('tourBox'); if(!box) return; box.textContent=''; if(!TOUR) return; const now=Date.now(), c=TOUR.cur, k=TOUR_KIND[c.kind]||TOUR_KIND.gold;
+  const row=mk('div','row tour'), h=mk('h3','',k.name); h.append(mk('i','', c.active ? 'nog '+fmtLeft(c.end-now) : now<c.start ? 'start over '+fmtLeft(c.start-now) : 'afgelopen'));
+  row.append(h, mk('p','',`Weekendtoernooi: ${k.goal}, van vrijdag 18:00 tot zondag 22:00. Prijzen: 50, 30 en 15 edelstenen.`));
+  if(c.active) row.append(mk('p','',`Jouw score: ${fmt(tscore())} ${k.unit}.`));
+  const top=TOUR.top||[]; if(top.length){ const ol=mk('ol','tourlist'); top.forEach(t => { const li=mk('li',t.me?'mine':'', `${t.name} · ${fmt(+t.score)}`); ol.append(li); }); row.append(ol); }
+  else if(c.active) row.append(mk('p','hint','Nog geen scores. Jij kunt de eerste zijn!'));
+  const last=TOUR.last; if(last && last.length) row.append(mk('p','hint','Vorige winnaars: '+last.map((w,i) => `${i+1}. ${w.name} (+${w.gems})`).join(', ')));
+  box.append(row); }
+setInterval(() => { if(STATUS==='approved' && Date.now()-tourT > (open && tab==='a' ? 30000 : 90000)) loadTour(true); }, 5000);
+
+// gifts between players
+function giftBtn(o){ return o.me ? '' : `<button class="buy" data-act="giftTo" data-arg="${o.id}">Stuur cadeau</button>`; }
+function giftHtml(){ const o=giftTo; if(!o) return ''; const opts=[['gems','Edelstenen'],['food','Voedsel'],['wood','Hout'],['stone','Steen'],['gold','Goud']];
+  return `<div class="row"><h3>Cadeau voor ${esc(o.name)}</h3><p>Je kunt 5 cadeaus per dag sturen. Grondstoffen gaan als deel van je voorraad.</p>
+    <form id="giftForm"><label for="giftKind">Wat</label><select id="giftKind">${opts.filter(x => x[0]!=='stone'||S.era>=1).filter(x => x[0]!=='gold'||S.era>=2).map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select>
+    <label for="giftAmt2">Hoeveel</label><select id="giftAmt2"><option value="0.05">5%</option><option value="0.1" selected>10%</option><option value="0.25">25%</option></select>
+    <label for="giftNote">Berichtje (mag leeg)</label><input id="giftNote" maxlength="80"><button class="buy" type="submit">Verstuur</button></form>
+    <p class="hint">Bij edelstenen geldt: 5% = 1 of meer, je stuurt nooit meer dan je hebt.</p></div>`; }
+async function sendPlayerGift(e){ e.preventDefault(); const o=giftTo; if(!o) return; const k=$('giftKind').value, f=+$('giftAmt2').value, what={};
+  if(k==='gems'){ const n=Math.max(1,Math.floor(S.gems*f)); if(S.gems<n){ toast('Zoveel edelstenen heb je niet.'); return; } what.gems=n; }
+  else { const n=Math.floor(S.res[k]*f); if(n<1){ toast('Je hebt hier te weinig van.'); return; } what[k]=n; }
+  try{ await sync(true); await rpc('send_gift',{p_token:token(),p_to:o.id,p_what:what,p_note:$('giftNote').value}); for(const r in what){ if(r==='gems') S.gems-=what[r]; else S.res[r]-=what[r]; }
+    dirty=true; save(); toast(`Cadeau verstuurd naar ${o.name}: ${fmt(what[k])} ${k==='gems'?'edelstenen':RES_NAME[k].toLowerCase()}.`,5000); giftTo=null; render(); }
+  catch(err){ toast(err.message,5000); } }
+async function loadInbox(){ let L=[]; try{ L=await rpc('inbox',{p_token:token()})||[]; }catch(e){ return; }
+  for(const g of L){ const parts=[]; for(const k in g.what||{}){ const n=Math.max(0,+g.what[k]||0); if(k==='gems'){ S.gems+=Math.floor(n); parts.push(Math.floor(n)+' edelstenen'); } else if(RES_NAME[k]){ S.res[k]+=n; parts.push(fmt(n)+' '+RES_NAME[k].toLowerCase()); } }
+    if(parts.length){ const m=`${g.from} stuurde je een cadeau: ${parts.join(', ')}.${g.note?' "'+g.note+'"':''}`; if(!reportAdd(m)) toast(m,7000); } }
+  if(L.length){ dirty=true; save(); refresh(); } }
+
+// coat of arms
+const CREST_COL=['#c8402a','#2f5fa8','#2f7a4a','#6b3fa0','#2a2622','#e3b84c','#ece5d2'];
+const CREST_SYM=['Ster','Kroon','Zwaard','Toren','Maan','Boom'];
+function crestOf(c){ c=c||{}; return {shape:(+c.shape||0)%4, c1:(+c.c1||0)%CREST_COL.length, c2:(c.c2===undefined?5:+c.c2)%CREST_COL.length, sym:(+c.sym||0)%CREST_SYM.length}; }
+function drawCrest(c,cr,x,y,s){ cr=crestOf(cr); c.save(); c.translate(x,y); c.scale(s/40,s/40);
+  c.beginPath(); if(cr.shape===0){ c.moveTo(-16,-18); c.lineTo(16,-18); c.lineTo(16,2); c.quadraticCurveTo(16,16,0,22); c.quadraticCurveTo(-16,16,-16,2); }
+  else if(cr.shape===1){ c.arc(0,0,19,0,6.2832); } else if(cr.shape===2){ c.moveTo(-16,-19); c.lineTo(16,-19); c.lineTo(16,19); c.lineTo(0,11); c.lineTo(-16,19); }
+  else { c.moveTo(0,-21); c.lineTo(17,-4); c.lineTo(0,21); c.lineTo(-17,-4); } c.closePath();
+  c.fillStyle='#1b140c'; c.lineWidth=4; c.strokeStyle='#1b140c'; c.stroke(); c.save(); c.clip(); c.fillStyle=CREST_COL[cr.c1]; c.fillRect(-22,-22,44,44); c.fillStyle=CREST_COL[cr.c2]; c.fillRect(0,-22,22,44); c.restore();
+  const sc=CREST_COL[cr.c1]==='#ece5d2'||CREST_COL[cr.c1]==='#e3b84c' ? '#1b140c' : '#fff3e4'; c.fillStyle=sc; c.strokeStyle=sc; c.lineWidth=2.4; const k=cr.sym; c.beginPath();
+  if(k===0){ for(let i=0;i<10;i++){ const r=i%2?4:10, a=-Math.PI/2+i*Math.PI/5; c.lineTo(Math.cos(a)*r,Math.sin(a)*r); } c.closePath(); c.fill(); }
+  else if(k===1){ c.moveTo(-9,6); c.lineTo(9,6); c.lineTo(10,-6); c.lineTo(5,0); c.lineTo(0,-9); c.lineTo(-5,0); c.lineTo(-10,-6); c.closePath(); c.fill(); }
+  else if(k===2){ c.moveTo(0,-12); c.lineTo(0,9); c.stroke(); c.beginPath(); c.moveTo(-6,4); c.lineTo(6,4); c.stroke(); }
+  else if(k===3){ c.fillRect(-7,-4,14,14); c.fillRect(-9,-9,4,6); c.fillRect(-2,-9,4,6); c.fillRect(5,-9,4,6); }
+  else if(k===4){ c.arc(0,0,10,.6,5.7); c.arc(5,0,8,5.2,1.1,true); c.closePath(); c.fill(); }
+  else { c.moveTo(0,-11); c.lineTo(10,4); c.lineTo(-10,4); c.closePath(); c.fill(); c.fillRect(-1.5,4,3,6); }
+  c.restore(); }
+function crestImg(cr,size){ const cv=document.createElement('canvas'), d=Math.min(window.devicePixelRatio||1,2); cv.width=size*d; cv.height=size*d; cv.style.width=size+'px'; cv.style.height=size+'px'; cv.className='crest';
+  const c=cv.getContext&&cv.getContext('2d'); if(c){ c.scale(d,d); drawCrest(c,cr,size/2,size/2,size*.9); } return cv; }
+let MYCREST=null;
+function crestHtml(){ const cr=crestOf(MYCREST||S.crest); const sel=(id,arr,v,lab) => `<label for="${id}">${lab}</label><select id="${id}">${arr.map((x,i)=>`<option value="${i}" ${i===v?'selected':''}>${x}</option>`).join('')}</select>`;
+  const cols=['Rood','Blauw','Groen','Paars','Zwart','Goud','Wit'];
+  return `<div class="row"><h3>Jouw wapenschild<i>${titleOf({era:S.era,pr:S.pr})}</i></h3><div class="crestrow"><span id="crestPrev"></span><form id="crestForm" class="crestform">
+    ${sel('crShape',['Schild','Rond','Vaandel','Ruit'],cr.shape,'Vorm')}${sel('crC1',cols,cr.c1,'Kleur links')}${sel('crC2',cols,cr.c2,'Kleur rechts')}${sel('crSym',CREST_SYM,cr.sym,'Teken')}
+    <button class="buy" type="submit">Bewaar</button></form></div><p class="hint">Je titel groeit mee met je tijdperk. Met kronen word je Groot-${TITLE_BY_ERA[Math.min(9,S.era)].toLowerCase()}.</p></div>`; }
+function crestPreview(){ const p=$('crestPrev'); if(!p) return; const cr={shape:+$('crShape').value,c1:+$('crC1').value,c2:+$('crC2').value,sym:+$('crSym').value}; p.textContent=''; p.append(crestImg(cr,56)); return cr; }
+async function saveCrest(e){ e.preventDefault(); const cr=crestPreview(); try{ await rpc('set_crest',{p_token:token(),p_crest:cr}); MYCREST=cr; S.crest=cr; dirty=true; toast('Wapenschild bewaard'); }catch(err){ toast(err.message); } }
+document.addEventListener('change', e => { if(e.target && /^cr(Shape|C1|C2|Sym)$/.test(e.target.id)) crestPreview(); });
+document.addEventListener('submit', e => { if(!e.target) return; if(e.target.id==='crestForm') saveCrest(e); else if(e.target.id==='giftForm') sendPlayerGift(e); });
+function giftOpen(id){ if(!id){ giftTo=null; render(); return; }
+  const o=(WORLD && WORLD.players.find(p => p.id===id)) || RANKS.find(p => p.id===id); if(!o) return;
+  if(!WORLD_ON){ openWorld(id); } giftTo={id:o.id,name:o.name}; WSEL=findSel('player',id)||WSEL; tab='w'; open=true; render(); }
+// tournament counters: watch production, building and victories
+let TWS=null;
+setInterval(() => { if(!TOUR || !TOUR.cur.active || VIEW_S) return; const now=Date.now(), lv=Object.values(S.lv||{}).reduce((a,b)=>a+b,0),
+    snap={b:buildings(S)+lv+Object.keys(S.deco||{}).length, w:S.wins||0, t:now};
+  if(TWS){ if(snap.b>TWS.b) tcount("build",snap.b-TWS.b); if(snap.w>TWS.w) tcount("wins",snap.w-TWS.w); tcount("gold", Math.max(0,rates(S,now).gold)*Math.min(5,(now-TWS.t)/1000)); }
+  TWS=snap; }, 1000);
+
+// install as app (PWA)
+let INSTALL_EV=null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EV=e; renderInstall(); });
+window.addEventListener('appinstalled', () => { INSTALL_EV=null; toast('Het spel staat nu als app op je telefoon.'); renderInstall(); });
+if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+function isApp(){ return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true; }
+function renderInstall(){ const box=$('installBox'); if(!box) return; box.textContent=''; if(isApp()) return;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent), row=mk('div','row'); row.append(mk('h3','','Speel als app'));
+  if(INSTALL_EV){ row.append(mk('p','','Zet het spel als app op je startscherm. Dan opent het schermvullend, zonder adresbalk.')); const a=mk('div','act'), b=mk('button','buy','Installeer de app'); b.dataset.act='install'; b.dataset.arg=''; a.append(b); row.append(a); }
+  else if(ios) row.append(mk('p','','Op iPhone: tik in Safari onderaan op de deelknop (het vierkantje met pijl omhoog) en kies "Zet op beginscherm".'));
+  else row.append(mk('p','','Open het menu van je browser (de drie puntjes) en kies "App installeren" of "Toevoegen aan startscherm".'));
+  box.append(row); }
+async function doInstall(){ if(!INSTALL_EV) return; INSTALL_EV.prompt(); try{ await INSTALL_EV.userChoice; }catch(e){} INSTALL_EV=null; renderInstall(); }
+
+// share the game: invite friends with your own code, earn gems when they are let in
+let REF=null;
+async function loadRef(){ if(STATUS!=='approved') return; try{ REF=await rpc('my_ref',{p_token:token()}); }catch(e){ return; } if(REF && REF.id) ME=REF.id; renderRef(); }
+function refLink(){ return REF ? siteUrl()+'?ref='+REF.code : siteUrl(); }
+function renderRef(){ const box=$('refBox'); if(!box || !REF) return; box.textContent='';
+  const row=mk('div','row'), h=mk('h3','','Nodig vrienden uit'); h.append(mk('i','',`+${REF.gems} edelstenen per vriend`));
+  row.append(h, mk('p','',`Deel het spel met jouw eigen link. Zodra een vriend is toegelaten, krijg jij ${REF.gems} edelstenen.`),
+    mk('p','hint',`Via jou: ${REF.joined} meegedaan${+REF.waiting?', '+REF.waiting+' wachten nog op toegang':''}. Jouw code: ${REF.code}`));
+  const a=mk('div','act'), b=mk('button','buy','Deel het spel'); b.dataset.act='share'; b.dataset.arg=''; const w=mk('a','buy linkbtn','Via WhatsApp'); w.href=wa(shareText()); w.target='_blank'; w.rel='noopener'; a.append(b,w); row.append(a); box.append(row); }
+function shareText(){ return 'Speel mee met Van Vuursteen tot Vorst: bouw je dorp van de Steentijd tot de Ruimtetijd! '+refLink(); }
+async function shareGame(){ const url=refLink();
+  if(navigator.share){ try{ await navigator.share({title:'Van Vuursteen tot Vorst',text:'Speel mee met Van Vuursteen tot Vorst: bouw je dorp van de Steentijd tot de Ruimtetijd!',url}); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  try{ await navigator.clipboard.writeText(url); toast('Link gekopieerd. Plak hem in een bericht aan je vrienden.'); }catch(e){ window.open(wa(shareText()),'_blank'); } }
+
+// buy gems (Stripe Payment Links, set up by the game master in the portal)
+let PACKS=null, packT=0;
+async function loadPacks(){ packT=Date.now(); try{ PACKS=await rpc('shop_packs',{p_token:token()})||[]; }catch(e){ PACKS=[]; } if(open && tab==='s') render(); }
+function shopPacksHtml(){ if(STATUS!=='approved') return ''; if(!PACKS || Date.now()-packT>120000){ if(Date.now()-packT>5000) loadPacks(); if(!PACKS) return ''; }
+  if(!PACKS.length) return '';
+  return `<h3 class="sub">Edelstenen kopen</h3>`+PACKS.map((k,i) => `<div class="row"><h3>${esc(k.name||'Edelstenen')}<i class="num">${(+k.cents/100).toLocaleString('nl-NL',{style:'currency',currency:'EUR'})}</i></h3><p>${+k.gems} edelstenen${k.note?' · '+esc(k.note):''}</p><div class="act"><button class="buy" data-act="pack" data-arg="${i}">Koop</button></div></div>`).join('')
+    +`<p class="hint">Je betaalt veilig via Stripe (iDEAL of kaart). De edelstenen staan binnen een minuut in je spel.</p>`; }
+async function buyPack(i){ const k=PACKS && PACKS[i]; if(!k) return; if(!ME) await loadRef(); if(!ME) return; const sep=k.url.indexOf('?')>=0?'&':'?';
+  window.open(k.url+sep+'client_reference_id='+encodeURIComponent(ME),'_blank','noopener'); toast('Rond de betaling af in het nieuwe venster. Je edelstenen komen daarna vanzelf binnen.',7000); }
 
 window.claude && window.claude.hot && window.claude.hot.ready ? window.claude.hot.ready(start) : start();
 </script>
