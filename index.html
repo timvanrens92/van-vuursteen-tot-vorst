@@ -30,7 +30,7 @@ html,body{margin:0;height:100%}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{overflow:hidden;overscroll-behavior:none}
 body{background:var(--ground);color:var(--bone);font-family:var(--body);font-size:16px;line-height:1.3;display:flex;justify-content:center;overflow:hidden}
-#app{width:100%;max-width:520px;height:100%;height:100dvh;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
+#app{width:100%;max-width:520px;height:100%;height:100dvh;height:var(--appH,100dvh);min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
@@ -1469,6 +1469,12 @@ function start(){
   draw(0,0); net();
 }
 
+// real visible height: some phones (installed app, gesture bar, browser bars) report 100dvh too large
+(function(){ let last=0; const fit=() => { const vv=window.visualViewport, h=Math.round(Math.min(window.innerHeight, vv?vv.height+vv.offsetTop:1e9, document.documentElement.clientHeight||1e9));
+    if(h>200 && h!==last){ last=h; document.documentElement.style.setProperty('--appH',h+'px'); window.scrollTo(0,0); } };
+  fit(); window.addEventListener('resize',fit); window.addEventListener('orientationchange',() => setTimeout(fit,300)); if(window.visualViewport) window.visualViewport.addEventListener('resize',fit);
+  document.addEventListener('visibilitychange',() => setTimeout(fit,200)); setInterval(fit,1500); })();
+
 // ---- extras: daily missions with a streak, events with choices, famous visitors, world wonders panel, village chronicle
 const DAYMS=86400000;
 function dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
@@ -1866,6 +1872,7 @@ function x3chips(){ const box=$('x3chips'); if(!box || typeof S==='undefined' ||
     if(isNight(now)) h+=`<button data-act="x3" data-arg="nm">Nachthandelaar</button>`;
     if(S.cap && now>=S.cap.t+CAP_DAYS*DAYMS) h+=`<button class="gold" data-act="x3" data-arg="capGo">Capsule klaar!</button>`;
   }
+  const tk=$('newsTicker'), b=(tk && !tk.hidden && tk.textContent) ? '100px' : '58px'; if(box.style.bottom!==b) box.style.bottom=b;
   if(box.innerHTML!==h) box.innerHTML=h; }
 function rijkHtml(){ return storyHtml()+prophHtml()+legendHtml()+heroesHtml()+capHtml()+ttHtml()+`<h3 class="sub">Klein dorpje</h3><div class="row"><p>Een eigen mini-dorp voor je kind of partner, met grote knoppen en cadeaus voor jouw dorp.</p><div class="act"><button class="buy" data-act="x3" data-arg="kid">Open ${S.kid&&S.kid.name?esc2(S.kid.name)+'s dorpje':'het kleine dorpje'}</button></div></div>`; }
 function x3act(arg){ const [a,b]=String(arg).split(':');
@@ -1895,8 +1902,8 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22k';
-const NEWS=['Weer en nacht: regen, onweer met bosbranden en mist, en \'s nachts een geheimzinnige handelaar.','Je dorp heeft nu een eigen legende, helden met een naam, een tijdcapsule, een profetie van de week en een tijdreiziger.','Elke maand een verhaal waarin alle spelers samen kiezen hoe het verdergaat, spookdorpen op de wereldkaart en een klein dorpje voor je kind of partner.'];
+const GAME_VERSION='2026-11-22l';
+const NEWS=['Het spel past zich nu aan de echte schermhoogte van je telefoon aan, ook als app op je beginscherm.','Knoppen en het wereldnieuws op de kaart zitten elkaar niet meer in de weg.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
