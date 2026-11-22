@@ -268,6 +268,14 @@ b.gold{color:#e3b84c}
 .wonder.top{border:1px solid rgba(240,197,78,.55)}
 @container (max-height:260px){ .vzoom{display:none} }
 
+.photobtn{position:absolute;right:8px;top:76px;z-index:3;background:rgba(24,33,27,.85);color:var(--bone);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:800;border:1px solid rgba(255,255,255,.15)}
+@container (max-height:300px){ .photobtn{display:none} }
+.passgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 14px}
+.pass{background:rgba(255,255,255,.05);border-radius:8px;padding:5px;display:flex;flex-direction:column;gap:4px;align-items:center;font-size:12px}
+.pass.got{background:rgba(240,197,78,.14)}.pass.big{outline:1px solid rgba(240,197,78,.6)}
+.pass .buy{padding:3px 2px;font-size:12px;width:100%;min-height:0}.pass .buy.gold{background:var(--gold);color:#1b140c}
+.pass .buy:disabled{opacity:.38}.pass .buy{min-width:0}
+
 </style>
 </head>
 <body>
@@ -290,6 +298,7 @@ b.gold{color:#e3b84c}
     <div class="rschip num" id="rsChip" hidden></div>
     <div class="timechip" id="timeChip"></div>
     <button class="questbtn" id="questBtn" data-act="tab" data-arg="q">Opdrachten</button>
+    <button class="photobtn" id="photoBtn" data-act="photo" data-arg="" aria-label="Maak een foto van je dorp">Foto</button>
     <div class="fxchip" id="fxChip" hidden></div>
     <div class="bubble" id="bubble" hidden></div>
     <button class="buy movebtn" id="moveBtn" data-act="move" data-arg="" hidden>Klaar met verplaatsen</button>
@@ -969,6 +978,10 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return; WSP=wonderSpot(s);
   if(after && !after.won){ smoke(c,gx,gy-8,t*2,4); smoke(c,CPT[0]+10,ctop+20,t*2+.3,4); }
   const badge=(x,y)=>{ const bb=Math.sin(t*4)*2; dot(c,'#3a2713',x,y-bb,8.5); dot(c,'#f0c54e',x,y-bb,7); c.fillStyle='#3a2713'; c.fillRect(x-1.2,y-bb-4.4,2.4,5.4); c.fillRect(x-1.2,y-bb+2.1,2.4,2.4); };
   if(opt.sel){ const [x,y]=P(opt.sel.i,opt.sel.j); c.strokeStyle='#fff3e4'; c.lineWidth=2.4; c.setLineDash([5,4]); diamondPath(c,x,y,.95); c.stroke(); c.setLineDash([]); }
+  if(typeof holiday==='function'){ const hd=holiday(Date.now());
+    if(hd==='sint'){ const a=t*.25, [x,y]=P(MID+.5+Math.cos(a)*1.4, MID+.5+Math.sin(a)*1.4); person(c,x,y,{era:0,body:'#c0262d',legs:'#f1e6cf',cape:'#c0262d',crown:true,sc:1.8,walk:t*7});
+      for(let q=0;q<3;q++){ const [px,py]=P(MID+.5+Math.cos(a-.5-q*.35)*1.4, MID+.5+Math.sin(a-.5-q*.35)*1.4); person(c,px,py,{era:0,body:['#2f5fa8','#e3b84c','#2f7a4a'][q],legs:'#2a2622',hat:'hood',sc:1.3,walk:t*9+q}); } }
+    if(hd==='kerst'){ const [x,y]=P(MID-.9,MID+.9); stand(c,'treePine_large',x,y,1.9); for(let q=0;q<14;q++){ const k=q/14, on=(Math.sin(t*3+q)>0); dot(c,on?['#ff4d4d','#ffd23f','#4dc3ff','#7dff8a'][q%4]:'rgba(255,255,255,.3)',x+Math.sin(q*2.3)*(6+k*9),y-48+k*40,2.2); } } }
   const dk=opt.dark||0, sea=opt.season;
   if(sea==='winter'){ c.fillStyle='rgba(235,245,255,.22)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<70;k++){ const fx=(h2(k,3)*1400-700), fy=((h2(k,9)*900+t*28*(0.6+h2(k,1)))%900)-300; dot(c,'rgba(255,255,255,.85)',fx,fy,1.4+h2(k,5)*1.4); } }
   else if(sea==='herfst'){ c.fillStyle='rgba(255,150,40,.07)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<22;k++){ const fx=(h2(k,13)*1200-600)+Math.sin(t+k)*18, fy=((h2(k,7)*800+t*16)%800)-260; poly(c,k%2?'#d9772b':'#c4502a',[fx,fy-2.5, fx+3,fy, fx,fy+2.5, fx-3,fy]); } }
@@ -1234,6 +1247,8 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'clanLeave': rpc('clan_leave',{p_token:token()}).then(() => { toast('Je hebt de alliantie verlaten.'); loadClan(); }).catch(e => toast(e.message)); return;
     case 'bossHit': bossHit(); return;
     case 'route': setRoute(arg); return;
+    case 'spClaim': spClaim(arg); return;
+    case 'photo': villagePhoto(); return;
     case 'daily': claimDaily(); return;
     case 'evpick': pickEvent(arg); return;
     case 'wonder': { const w=WONDERBY[arg]; ok=buildWonder(S,w); if(ok){ onWonder(w); if(typeof tcount==='function') tcount('build',1); } } break;
@@ -1422,7 +1437,7 @@ function questHtml(){ ensureQuests(Date.now()); const st=S.streak||{n:0}, left=D
   const all=S.dq.q.every(x => x.done), g=5+Math.min(7,(st.last===dayKey(Date.now()-DAYMS)?st.n+1:1))*3;
   h+=`<div class="row"><h3>Dagkist<i class="num">reeks ${st.n||0} ${st.n===1?'dag':'dagen'}</i></h3><p>Haal alle drie de opdrachten voor de dagkist. Elke dag op rij wordt hij groter, tot 26 edelstenen op dag 7.</p>
     <div class="act">${S.dq.claimed?'<span class="pill ok">Vandaag al geopend</span>':`<button class="buy" data-act="daily" data-arg="" ${all?'':'disabled'}>Open de dagkist · +${g}</button>`}</div></div>`;
-  h+=wonderHtml()+chronHtml(); return h; }
+  h+=passHtml()+wonderHtml()+chronHtml(); return h; }
 
 // world wonders
 let WFIRST={};
@@ -1459,7 +1474,7 @@ const EVENTS=[
     go:(s,n) => { addFx(s,n,'all',1.25,20); return '20 minuten +25% productie dankzij het bezoek.'; }}];
 let EVNOW=null;
 function eventTick(now){ if(EVNOW || VIEW_S || REPLAY || ATTACK || REPORT) return; if(!S.evAt){ S.evAt=now+20*60000; return; } if(now<S.evAt) return;
-  const pool=EVENTS.filter(e => e.era<=S.era), e=pool[Math.floor(Math.random()*pool.length)]; S.evAt=now+(35+Math.random()*40)*60000; showEvent(e); }
+  const hol=holiday(now), sp=hol && Math.random()<.5 ? EVENTS.filter(e => e.when===hol) : null, pool=sp&&sp.length ? sp : EVENTS.filter(e => e.era<=S.era && (!e.when || e.when===hol)), e=pool[Math.floor(Math.random()*pool.length)]; S.evAt=now+(35+Math.random()*40)*60000; showEvent(e); }
 function showEvent(e){ EVNOW=e; let el=$('event'); if(!el){ el=mk('div','report'); el.id='event'; el.setAttribute('role','dialog'); document.body.append(el); }
   const d = e.id==='famous' ? `${FAMOUS[Math.min(S.era,FAMOUS.length-1)]} komt langs in je dorp en deelt zijn kennis.` : e.d;
   el.innerHTML=`<div class="card"><h2>${e.id==='famous'?FAMOUS[Math.min(S.era,FAMOUS.length-1)]:e.t}</h2><p>${d}</p><div class="evbtns"><button class="buy wide" data-act="evpick" data-arg="a">${e.a}</button><button class="buy alt wide" data-act="evpick" data-arg="b">${e.b}</button></div></div>`; el.hidden=false; }
@@ -1478,9 +1493,57 @@ setInterval(() => { if(typeof S==='undefined' || !S || VIEW_S) return; const now
   if(lastEra!==null && S.era>lastEra) chron(`Het dorp ging naar ${ERAS[S.era].name}.`); lastEra=S.era;
   ensureQuests(now); questTick(); eventTick(now); refreshQuestBtn(); if(open && tab==='q') liveQuests(); const fc=$('fxChip'); if(fc){ const t=fxChip(); fc.textContent=t; fc.hidden=!t; } }, 1000);
 
+// ---- season pass: a month of rewards, earned with XP from missions, wonders and the world boss
+const SP_LV=20, SP_XP=100;
+let PASS_GOLD=false;
+function monthKey(t){ const d=new Date(t); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function spEnsure(){ const m=monthKey(Date.now()); if(!S.sp || S.sp.m!==m){ S.sp={m,xp:0,c:[],g:[]}; dirty=true; } return S.sp; }
+function spXp(n,why){ const sp=spEnsure(), before=Math.floor(sp.xp/SP_XP); sp.xp+=n; dirty=true; const after=Math.floor(sp.xp/SP_XP); if(after>before && after<=SP_LV) toast(`Seizoenspas: niveau ${after} gehaald!`,4000); }
+function spReward(lv,gold){ if(gold) return lv%5===0 ? {gems:25} : {gems:6}; return lv%5===0 ? {gems:15} : {gems:3}; }
+function spClaim(arg){ const [lv,track]=arg.split('|').map((x,i)=>i?x:+x), sp=spEnsure(), gold=track==='g';
+  if(Math.floor(sp.xp/SP_XP)<lv || (gold?sp.g:sp.c).indexOf(lv)>=0 || (gold && !PASS_GOLD)) return; const r=spReward(lv,gold); S.gems+=r.gems; (gold?sp.g:sp.c).push(lv); dirty=true;
+  toast(`+${r.gems} edelstenen uit de seizoenspas.`); render(); }
+function passHtml(){ const sp=spEnsure(), lv=Math.min(SP_LV,Math.floor(sp.xp/SP_XP)), inLv=sp.xp%SP_XP, end=new Date(new Date().getFullYear(),new Date().getMonth()+1,1).getTime();
+  const pack=(typeof PACKS!=='undefined' && PACKS||[]).find(k => k.kind==='pass');
+  let h=`<h3 class="sub">Seizoenspas · ${new Date().toLocaleDateString('nl-NL',{month:'long'})}<i class="hint"> · nog ${fmtLeft(end-Date.now())}</i></h3>
+    <div class="row"><h3>Niveau ${lv} van ${SP_LV}<i class="num">${lv>=SP_LV?'max':inLv+' / '+SP_XP+' XP'}</i></h3><div class="qbar"><b style="width:${lv>=SP_LV?100:inLv}%"></b></div>
+    <p class="hint">XP verdien je met opdrachten (+25), de dagkist (+40), wonderstappen (+30), gebeurtenissen (+10) en de wereldbaas (+15).</p>
+    ${PASS_GOLD?'<p><b class="gold">Je hebt de gouden pas: dubbele beloningen deze maand.</b></p>':pack?`<div class="act"><button class="buy" data-act="pack" data-arg="${(PACKS||[]).indexOf(pack)}">Gouden pas · ${(+pack.cents/100).toLocaleString('nl-NL',{style:'currency',currency:'EUR'})}</button></div><p class="hint">Met de gouden pas krijg je op elk niveau een tweede, grotere beloning.</p>`:''}</div><div class="passgrid">`;
+  for(let i=1;i<=SP_LV;i++){ const got=i<=lv, c=sp.c.indexOf(i)>=0, g=sp.g.indexOf(i)>=0, r=spReward(i,false), rg=spReward(i,true);
+    h+=`<div class="pass ${got?'got':''} ${i%5===0?'big':''}"><b>${i}</b><button class="buy" data-act="spClaim" data-arg="${i}|c" ${!got||c?'disabled':''}>${c?'✓':'+'+r.gems}</button><button class="buy gold" data-act="spClaim" data-arg="${i}|g" ${!got||g||!PASS_GOLD?'disabled':''}>${g?'✓':'+'+rg.gems}</button></div>`; }
+  return h+'</div>'; }
+// XP hooks: wrap the existing actions once
+(function(){ const _cd=claimDaily; claimDaily=function(){ const was=S.dq&&S.dq.claimed; _cd(); if(S.dq&&S.dq.claimed&&!was) spXp(40); };
+  const _qt=questTick; questTick=function(){ const before=S.dq?S.dq.q.filter(x=>x.done).length:0; _qt(); const after=S.dq?S.dq.q.filter(x=>x.done).length:0; if(after>before) spXp(25*(after-before)); };
+  const _ow=onWonder; onWonder=function(w){ spXp(30); _ow(w); };
+  const _pe=pickEvent; pickEvent=function(x){ if(EVNOW) spXp(10); _pe(x); }; })();
+function loadPass(){ if(typeof rpc!=='function' || typeof token!=='function') return; rpc('my_pass',{p_token:token()}).then(r => { PASS_GOLD=!!(r && r.month && r.month===r.now); }).catch(()=>{}); }
+
+// ---- photo mode: a big, sharp picture of your village to share
+async function villagePhoto(){ const W=1080, H=1350, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const c=cv.getContext('2d');
+  const R=RAD[S.era], span=2*R+2.2, z=Math.min(W/(span*TW), (H-260)/(span*TH+40)), p=P(MID,MID);
+  c.fillStyle='#27ae60'; c.fillRect(0,0,W,H); c.setTransform(z,0,0,z,W/2-p[0]*z,(H+80)/2-(p[1]-8)*z); c.imageSmoothingQuality='high';
+  drawScene(c,S,performance.now()/1000,{dark:0,season:season(Date.now())}); c.setTransform(1,0,0,1,0,0);
+  const g=c.createLinearGradient(0,0,0,220); g.addColorStop(0,'rgba(20,14,8,.85)'); g.addColorStop(1,'rgba(20,14,8,0)'); c.fillStyle=g; c.fillRect(0,0,W,240);
+  c.fillStyle='#f6eedb'; c.font='800 64px "Grenze Gotisch", serif'; c.fillText(typeof ME_NAME!=='undefined'&&ME_NAME?ME_NAME:'Mijn dorp',48,96);
+  c.font='600 38px "Alegreya Sans", sans-serif'; c.fillStyle='#f0c54e'; c.fillText(`${ERAS[S.era].name} · ${buildings(S)} gebouwen${S.pr?' · '+S.pr+' kronen':''}`,48,150);
+  c.fillStyle='rgba(20,14,8,.75)'; c.fillRect(0,H-90,W,90); c.fillStyle='#f6eedb'; c.font='700 34px "Alegreya Sans", sans-serif'; c.fillText('Van Vuursteen tot Vorst · speel mee!',48,H-34);
+  if(typeof crestOf==='function' && S.crest) drawCrest(c,S.crest,W-110,110,120);
+  let blob=null; try{ blob=await new Promise(r => cv.toBlob(r,'image/png')); }catch(e){} if(!blob){ toast('Foto maken lukte niet.'); return; }
+  const file=new File([blob],'mijn-dorp.png',{type:'image/png'}), link=(typeof refLink==='function')?refLink():location.href.split('?')[0];
+  if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],text:'Kijk mijn dorp in Van Vuursteen tot Vorst! Speel mee: '+link}); spXp(10); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mijn-dorp.png'; document.body.append(a); a.click(); a.remove(); toast('Foto opgeslagen. Deel hem met je vrienden!'); }
+
+// ---- holidays: Sinterklaas (until 5 December) and Christmas (18 to 31 December)
+function holiday(now){ const d=new Date(now), m=d.getMonth()+1, day=d.getDate(); if((m===11 && day>=14) || (m===12 && day<=5)) return 'sint'; if(m===12 && day>=18) return 'kerst'; return null; }
+EVENTS.push({id:'sint', era:0, when:'sint', t:'Sinterklaas komt langs!', d:'De Sint en zijn pieten strooien pepernoten door het dorp.', a:'Zet je schoen', b:'Zing een liedje',
+  go:(s,n) => { s.gems+=3; return 'In je schoen: 3 edelstenen!'; }, no:(s,n) => { addFx(s,n,'all',1.3,20); return 'De pieten helpen mee: 20 minuten +30% productie.'; }});
+EVENTS.push({id:'kerst', era:0, when:'kerst', t:'Kerstmarkt', d:'Het dorp viert kerst met lichtjes en warme chocolademelk.', a:'Pakjes uitdelen', b:'Kerstdiner',
+  go:(s,n) => { s.gems+=3; return 'Onder de boom: 3 edelstenen!'; }, no:(s,n) => { addFx(s,n,'food',2,30); return '30 minuten dubbel voedsel.'; }});
+
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22f';
-const NEWS=['Allianties: richt er een op of sluit je aan. Samen vul je de schatkist voor tot +20% productie, en je kunt met elkaar chatten. Zie Spelers.','Wereldbaas: de hele server valt samen een draak, piratenvloot of buitenaards moederschip aan. Iedereen die meevecht krijgt edelstenen, de top 3 extra.','Handelsroutes: open via de wereldkaart een route met een ander dorp. Jullie krijgen allebei +5% goud, en een karavaan loopt heen en weer.','Wereldwonderen staan nu ook in je dorp en bovenaan Bouwen.','Opdrachten tellen nu direct mee terwijl je tikt.'];
+const GAME_VERSION='2026-11-22g';
+const NEWS=['Seizoenspas: verdien elke maand XP met opdrachten, wonderen, gebeurtenissen en de wereldbaas. 20 niveaus met edelstenen, en een gouden pas voor dubbele beloningen. Zie Opdrachten.','Fotomodus: met de knop Foto in je dorp maak je een mooie foto van je dorp om te delen.','Sinterklaas is in het land! Tot 5 december loopt de Sint met zijn pieten door je dorp en komt hij soms langs met een cadeautje. In december volgt de kerstmarkt.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1522,7 +1585,7 @@ async function net(){
   setInterval(() => sync(false), 20000);
   document.addEventListener('visibilitychange',() => { if(document.hidden) sync(true); });
 }
-async function afterSync(r, first){
+async function afterSync(r, first){ if(r && r.name) window.ME_NAME=r.name;
   const was=STATUS; STATUS=r.status;
   if(r.version && r.version>GAME_VERSION) $('updBar').hidden=false;
   if(r.status==='unknown'){ setToken(''); STATUS=''; gateView('join','Je aanmelding bestaat niet meer. Meld je opnieuw aan.'); return; }
@@ -1545,6 +1608,7 @@ async function afterSync(r, first){
   if(+r.inbox>0 && typeof loadInbox==='function') loadInbox();
   if(first && typeof loadTour==='function') loadTour(false);
   if(first && typeof loadWonders==='function') loadWonders();
+  if(first && typeof loadPass==='function'){ loadPass(); if(typeof loadPacks==='function') loadPacks(); }
   if(first){ renderAlfa(); showNews(); }
   if(OWNER && Date.now()-adminT>60000) adminLoad();
 }
@@ -1897,8 +1961,8 @@ async function shareGame(){ const url=refLink();
 let PACKS=null, packT=0;
 async function loadPacks(){ packT=Date.now(); try{ PACKS=await rpc('shop_packs',{p_token:token()})||[]; }catch(e){ PACKS=[]; } if(open && tab==='s') render(); }
 function shopPacksHtml(){ if(STATUS!=='approved') return ''; if(!PACKS || Date.now()-packT>120000){ if(Date.now()-packT>5000) loadPacks(); if(!PACKS) return ''; }
-  if(!PACKS.length) return '';
-  return `<h3 class="sub">Edelstenen kopen</h3>`+PACKS.map((k,i) => `<div class="row"><h3>${esc(k.name||'Edelstenen')}<i class="num">${(+k.cents/100).toLocaleString('nl-NL',{style:'currency',currency:'EUR'})}</i></h3><p>${+k.gems} edelstenen${k.note?' · '+esc(k.note):''}</p><div class="act"><button class="buy" data-act="pack" data-arg="${i}">Koop</button></div></div>`).join('')
+  const gemPacks=PACKS.filter(k => k.kind!=='pass'); if(!gemPacks.length) return '';
+  return `<h3 class="sub">Edelstenen kopen</h3>`+PACKS.map((k,i) => k.kind==='pass'?'':`<div class="row"><h3>${esc(k.name||'Edelstenen')}<i class="num">${(+k.cents/100).toLocaleString('nl-NL',{style:'currency',currency:'EUR'})}</i></h3><p>${+k.gems} edelstenen${k.note?' · '+esc(k.note):''}</p><div class="act"><button class="buy" data-act="pack" data-arg="${i}">Koop</button></div></div>`).join('')
     +`<p class="hint">Je betaalt veilig via Stripe (iDEAL of kaart). De edelstenen staan binnen een minuut in je spel.</p>`; }
 async function buyPack(i){ const k=PACKS && PACKS[i]; if(!k) return; if(!ME) await loadRef(); if(!ME) return; const sep=k.url.indexOf('?')>=0?'&':'?';
   window.open(k.url+sep+'client_reference_id='+encodeURIComponent(ME),'_blank','noopener'); toast('Rond de betaling af in het nieuwe venster. Je edelstenen komen daarna vanzelf binnen.',7000); }
@@ -1943,7 +2007,7 @@ function renderBoss(){ const box=$('bossBox'); if(!box || !BOSS) return; const b
     <div class="qbar hp"><b style="width:${pc}%"></b></div><p class="hint">${fmt(b.hp)} / ${fmt(b.max)} levenspunten · jouw schade: ${fmt(+b.mine)}</p>
     ${b.done?'':`<div class="act"><button class="buy" data-act="bossHit" data-arg="" ${wait>0?'disabled':''}>${wait>0?'Je leger rust nog '+fmtLeft(wait):'Val aan met je leger'}</button></div>`}
     ${(b.top||[]).length?'<p class="hint">Top: '+b.top.map((x,i)=>`${i+1}. ${esc2(x.name)} (${fmt(+x.dmg)})`).join(', ')+'</p>':''}</div>`; }
-async function bossHit(){ try{ const r=await rpc('boss_hit',{p_token:token()}); toast(r.done?'De wereldbaas is verslagen!':`Je leger deed ${fmt(r.dmg)} schade.`,4000); if(r.done) chron('Het dorp hielp de wereldbaas verslaan.'); loadBoss(); }catch(e){ toast(e.message,5000); } }
+async function bossHit(){ try{ const r=await rpc('boss_hit',{p_token:token()}); toast(r.done?'De wereldbaas is verslagen!':`Je leger deed ${fmt(r.dmg)} schade.`,4000); if(typeof spXp==='function') spXp(15); if(r.done) chron('Het dorp hielp de wereldbaas verslaan.'); loadBoss(); }catch(e){ toast(e.message,5000); } }
 
 // trade routes
 async function loadRoutes(){ if(STATUS!=='approved') return; routesT=Date.now(); try{ ROUTES=await rpc('my_routes',{p_token:token()})||[]; }catch(e){ return; } ROUTE_N=ROUTES.length; renderRoutes(); }
