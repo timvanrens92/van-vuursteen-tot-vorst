@@ -248,6 +248,17 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
 .vzoom button{width:40px;height:40px;border-radius:50%;background:rgba(22,30,24,.85);color:var(--bone);font-size:22px;font-weight:800;border:1px solid rgba(255,255,255,.18);line-height:1}
 .vzoom button:disabled{opacity:.35}
 
+.questbtn{position:absolute;right:8px;top:40px;z-index:3;background:rgba(24,33,27,.85);color:var(--bone);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:800;border:1px solid rgba(255,255,255,.15)}
+.questbtn.ready{background:var(--gold);color:#1b140c;animation:advp 1.3s ease-in-out infinite}
+.fxchip{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:3;background:rgba(240,197,78,.92);color:#1b140c;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.qbar{height:8px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:6px 0 2px}
+.qbar b{display:block;height:100%;background:var(--gold);border-radius:5px}
+.quest.done h3, .wonder.done h3{color:#9fe0a8}
+.chron p{margin:3px 0}
+.evbtns{display:grid;gap:8px;margin-top:12px}
+.report .buy.alt{color:#2a1d10;border-color:#b9a983}
+b.gold{color:#e3b84c}
+
 </style>
 </head>
 <body>
@@ -269,6 +280,8 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
     <div class="viewbar" id="viewBar" hidden><span id="viewText"></span><span class="zoom"><button class="buy" data-act="zoom" data-arg="0.8" aria-label="Uitzoomen">−</button><button class="buy" data-act="zoom" data-arg="1.25" aria-label="Inzoomen">+</button></span><button class="buy" data-act="unview" data-arg="">Terug naar mijn dorp</button></div>
     <div class="rschip num" id="rsChip" hidden></div>
     <div class="timechip" id="timeChip"></div>
+    <button class="questbtn" id="questBtn" data-act="tab" data-arg="q">Opdrachten</button>
+    <div class="fxchip" id="fxChip" hidden></div>
     <div class="bubble" id="bubble" hidden></div>
     <button class="buy movebtn" id="moveBtn" data-act="move" data-arg="" hidden>Klaar met verplaatsen</button>
     <button class="worldbtn" id="worldBtn" data-act="world" data-arg="">Wereld</button>
@@ -347,7 +360,7 @@ canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
 
 <script>
 //LOGIC-START
-const V = 2, GN = 9, MID = 4, EM = 1.6, GROWTH = 1.15, MAXLVL = 5;
+const V = 2, GN = 9, MID = 4, EM = 1.6, GROWTH = 1.24, MAXLVL = 5;
 const RES = ['food','wood','stone','gold','apples','meat','hides','planks','iron','coal','steel','oil','power'];
 const MAIN = ['food','wood','stone','gold'], SIDE = ['power','oil','steel','coal','iron','planks','hides','meat','apples'];
 const RES_NAME = {food:'Voedsel',wood:'Hout',stone:'Steen',gold:'Goud',apples:'Appels',meat:'Vlees',hides:'Huiden',planks:'Planken',iron:'IJzer',coal:'Kolen',steel:'Staal',oil:'Olie',power:'Stroom'};
@@ -358,15 +371,15 @@ const RAID = [0,0,10,30,125,330,650,1250,2150,3500], RAID_MS = 8*60000, RAID_DUR
 const OFFLINE_CAP = 2*3600, BOOST_MS = 120000;
 const ERAS = [
   {name:'Steentijd'},
-  {name:'Bronstijd',        cost:{food:11000,wood:9100}, need:[['camp',8,2],['hut',8,2]]},
-  {name:'IJzertijd',        cost:{food:420000,wood:310000,stone:87000,hides:2700}, need:[['farm',10,2],['quarry',6,2],['hut',10,3]]},
-  {name:'Oudheid',          cost:{food:4500000,wood:3400000,stone:1500000,gold:150000,apples:30000}, need:[['mine',6,2],['mill',6,2],['barracks',1,1]], wall:1, guards:3},
-  {name:'Middeleeuwen',     cost:{food:22000000,wood:14000000,stone:7100000,gold:1400000,iron:28000,apples:120000}, need:[['farm',20,4],['market',6,2],['smithy',4,2]], wall:2, gate:1, guards:8, towers:2},
-  {name:'Renaissance',      cost:{food:850000000,wood:570000000,stone:330000000,gold:110000000,iron:2300000,planks:2300000}, need:[['guild',8,2],['watermill',8,2],['market',12,3],['barracks',3,3]], wall:3, gate:2, guards:15, towers:4},
-  {name:'Koloniale Tijd',      cost:{food:3200000000,wood:2100000000,stone:1700000000,gold:1000000000,iron:13000000,planks:10000000}, need:[['bank',8,2],['smithy',12,4]], wall:4, gate:3, guards:25, towers:6},
-  {name:'Industriële Tijd', cost:{food:32000000000,wood:22000000000,stone:8500000000,gold:17000000000,iron:170000000,planks:130000000}, need:[['academy',6,2],['bank',15,3]], wall:5, gate:3, guards:40, towers:8},
-  {name:'Moderne Tijd',     cost:{food:120000000000,wood:78000000000,stone:32000000000,gold:64000000000,iron:640000000,steel:39000000,coal:190000000}, need:[['factory',10,2],['academy',12,3]], wall:5, gate:3, guards:55, towers:10},
-  {name:'Ruimtetijd',       cost:{food:2200000000000,wood:2200000000000,stone:450000000000,gold:8400000000000,steel:1200000000,oil:1900000000,power:990000000}, need:[['office',8,2],['factory',20,3]], wall:5, gate:3, guards:75, towers:12},
+  {name:'Bronstijd',        cost:{food:4800,wood:4000}, need:[['camp',6,2],['hut',6,2]]},
+  {name:'IJzertijd',        cost:{food:130000,wood:96000,stone:27000,hides:835}, need:[['farm',7,2],['quarry',6,2],['hut',7,3]]},
+  {name:'Oudheid',          cost:{food:1300000,wood:1000000,stone:440000,gold:44000,apples:8800}, need:[['mine',6,2],['mill',6,2],['barracks',1,1]], wall:1, guards:3},
+  {name:'Middeleeuwen',     cost:{food:47000000,wood:30000000,stone:15000000,gold:3000000,iron:60000,apples:260000}, need:[['farm',12,4],['market',6,2],['smithy',4,2]], wall:2, gate:1, guards:8, towers:2},
+  {name:'Renaissance',      cost:{food:370000000,wood:250000000,stone:140000000,gold:48000000,iron:1000000,planks:1000000}, need:[['guild',6,2],['watermill',6,2],['market',8,3],['barracks',3,3]], wall:3, gate:2, guards:15, towers:4},
+  {name:'Koloniale Tijd',      cost:{food:1400000000,wood:920000000,stone:740000000,gold:440000000,iron:5700000,planks:4400000}, need:[['bank',6,2],['smithy',8,4]], wall:4, gate:3, guards:25, towers:6},
+  {name:'Industriële Tijd', cost:{food:9400000000,wood:6500000000,stone:2500000000,gold:5000000000,iron:50000000,planks:38000000}, need:[['academy',6,2],['bank',10,3]], wall:5, gate:3, guards:40, towers:8},
+  {name:'Moderne Tijd',     cost:{food:14000000000,wood:9700000000,stone:3800000000,gold:7500000000,iron:75000000,steel:220000,coal:1100000}, need:[['factory',7,2],['academy',8,3]], wall:5, gate:3, guards:55, towers:10},
+  {name:'Ruimtetijd',       cost:{food:1400000000000,wood:1400000000000,stone:290000000000,gold:5500000000000,steel:780000000,oil:1200000000,power:640000000}, need:[['office',6,2],['factory',12,3]], wall:5, gate:3, guards:75, towers:12},
 ];
 const BUILD = [
   {id:'camp',    name:'Jagerskamp',        era:0, out:{food:1},   cost:{food:15},  up:{food:200,wood:150}, side:[{l:2,r:'hides',q:.08},{l:3,r:'meat',q:.06}]},
@@ -424,14 +437,18 @@ const SLOTKEY = {}; SLOTS.forEach(t => SLOTKEY['t'+t.idx]=1);
 
 function newState(now){ const res={}; for(const k of RES) res[k]=0;
   return {v:V,res,b:{},lv:{},map:{},era:0,tool:0,gems:0,gp:0,gc:0,auto:0,go:0,gb:0,gs:0,gk:0,wall:0,gate:0,guards:0,u:{arc:0,cav:0,sie:0},hero:null,towers:0,deco:{},rn:0,raid:null,
-    boostUntil:0,feastUntil:0,partyUntil:0,peaceUntil:0,mercUntil:0,raidAt:0,lastRaid:null,wins:0,flag:0,flags:[0],claimed:[],sel:'food',tech:{},rs:null,pr:0,last:now}; }
+    boostUntil:0,feastUntil:0,partyUntil:0,peaceUntil:0,mercUntil:0,raidAt:0,lastRaid:null,wins:0,flag:0,flags:[0],claimed:[],sel:'food',tech:{},rs:null,pr:0,bal:2,last:now}; }
 function hydrate(saved,now){ const s=Object.assign(newState(now),saved); s.res=Object.assign(newState(now).res,saved.res||{});
   for(const k of ['b','lv','map','tech']) s[k]=Object.assign({},saved[k]||{}); s.u=Object.assign({arc:0,cav:0,sie:0},saved.u||{}); s.deco=Object.assign({},saved.deco||{}); s.hero=saved.hero?Object.assign({},saved.hero):null; s.rs=saved.rs?Object.assign({},saved.rs):null; s.flags=(saved.flags||[0]).slice(); s.claimed=(saved.claimed||[]).slice(-300);
-  s.lastRaid=saved.lastRaid?JSON.parse(JSON.stringify(saved.lastRaid)):null; s.raid=saved.raid?JSON.parse(JSON.stringify(saved.raid)):null; if(!ERAS[s.era]) s.era=0; if(RES_ERA[s.sel]===undefined) s.sel='food'; return s; }
+  s.lastRaid=saved.lastRaid?JSON.parse(JSON.stringify(saved.lastRaid)):null; s.raid=saved.raid?JSON.parse(JSON.stringify(saved.raid)):null; if(!ERAS[s.era]) s.era=0; if(RES_ERA[s.sel]===undefined) s.sel='food'; if(!saved.bal) rebalance(s,now); return s; }
+// Balance 2 (Nov 2026): fewer, pricier buildings and smaller numbers. Old saves keep their era, levels, research and gems;
+// building counts shrink (n^0.8) and stockpiles become at most half an hour of the new production.
+function rebalance(s,now){ for(const k in s.b) if(s.b[k]>0) s.b[k]=Math.max(1,Math.round(Math.pow(s.b[k],.8)));
+  const r=rates(s,now||Date.now()); for(const k of RES) s.res[k]=Math.min(s.res[k]||0, Math.max(0,(r[k]||0)*1800)); s.bal=2; s.map={}; s.converted=true; }
 function count(s,id){ return s.b[id]||0; }
 function lvl(s,id){ return s.b[id] ? (s.lv[id]||1) : 0; }
 const MILES = [10,25,50,75,100,150,200,300];
-function mile(n){ let k=0; for(const m of MILES) if(n>=m) k++; return Math.pow(1.5,k); }
+function mile(n){ let k=0; for(const m of MILES) if(n>=m) k++; return Math.pow(1.25,k); }
 function toMile(n){ for(const m of MILES) if(n<m) return m-n; return 0; }
 function eraMult(s){ return Math.pow(EM,s.era); }
 function mult(s,now){ return eraMult(s)*prMult(s)*decoMult(s)*(1+.25*s.gp)*(now<s.boostUntil?2:1)*(now<s.feastUntil?1.5:1)*(now<s.partyUntil?3:1); }
@@ -439,7 +456,7 @@ function gross(s,now){ const r={}; for(const k of RES) r[k]=0; const m=mult(s,no
   for(const d of BUILD){ const n=s.b[d.id]||0; if(!n) continue; const L=s.lv[d.id]||1;
     const mi=mile(n);
     const nb=NIGHT_IDS[d.id]&&isNight(now)?1.25:1;
-    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*nb*(1+tb(s,k)+seasonFx(now,k));
+    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*nb*(1+tb(s,k)+seasonFx(now,k)+wonderB(s,k))*fxM(s,now,k);
     for(const sd of d.side) if(L>=sd.l && (!sd.e || s.era>=sd.e)) r[sd.r]+=sd.q*n*LVL[L-sd.l]*sm*mi; }
   return r; }
 function buildings(s){ let n=0; for(const k in s.b) n+=s.b[k]; return n; }
@@ -476,7 +493,7 @@ function upMax(s,d){ let k=0; while(upgrade(s,d)) k++; return k; }
 function canUpgrade(s,d){ return !!s.b[d.id] && (s.lv[d.id]||1) < lvlCap(s,d); }
 function upgrade(s,d){ if(!canUpgrade(s,d) || !pay(s,upCost(s,d))) return false; s.lv[d.id]=(s.lv[d.id]||1)+1; return true; }
 function buyTool(s){ if(!pay(s,toolCost(s))) return false; s.tool++; return true; }
-function click(s){ const p=clickPower(s); s.res[s.sel]+=p; return p; }
+function click(s){ const p=clickPower(s); s.res[s.sel]+=p; s.taps=(s.taps||0)+1; return p; }
 function autoClick(s,sec){ if(s.auto) s.res[s.sel]+=clickPower(s)*2*s.auto*sec; }
 
 function nextWall(s){ const w=WALL[s.wall+1]; return w && w.era<=s.era ? w : null; }
@@ -520,7 +537,7 @@ function towerCost(s){ return scaled(s.era>=7 ? {stone:1500,steel:40} : {stone:1
 function buyTower(s){ if(s.towers>=towerCap(s) || !pay(s,towerCost(s))) return false; s.towers++; return true; }
 function defMult(s){ return Math.pow(1.3,Math.max(0,s.era-2)); }
 function guardPower(s){ return 3.5*(1+.25*Math.max(0,lvl(s,'barracks')-1))*heroMult(s); }
-function defence(s,now){ const a=army(s,now); let d=a.w; for(const x of UNITS) d+=a[x.id][1]; return d; }
+function defence(s,now){ const a=army(s,now); let d=a.w; for(const x of UNITS) d+=a[x.id][1]; return Math.round(d*(1+wonderB(s,'def'))); }
 // attack strength against other players: only guards march out
 function attackPower(s,now){ const a=army(s,now); let t=0; for(const x of UNITS) t+=a[x.id][0]; return t; }
 // fight with counters, the same formula the server uses (sie breaks walls, cavalry at home blunts siege)
@@ -628,7 +645,7 @@ const PR_ERA = 6;
 function prMult(s){ return 1+.5*(s.pr||0); }
 function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
 function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
-  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr']) keep[k]=s[k];
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt']) keep[k]=s[k];
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 
 // ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
@@ -673,6 +690,28 @@ function swapTiles(s,a,b){ if(a===b) return false; const ta=TILES.find(t => 't'+
   if(!ta || !tbb || !SLOTKEY[a] || !SLOTKEY[b] || ta.ring>R || tbb.ring>R) return false;
   for(const k of ['map','deco']){ const x=s[k][a], y=s[k][b]; delete s[k][a]; delete s[k][b]; if(y!==undefined) s[k][a]=y; if(x!==undefined) s[k][b]=x; } return true; }
 //LOGIC-END
+
+// ---- world wonders: one per era, built in five stages; a finished wonder gives a lasting bonus
+const WONDERS=[
+  {id:'stonehenge',era:0,name:'Stonehenge',b:{food:.15},txt:'+15% voedsel'},
+  {id:'pyramid',era:1,name:'Piramide van Gizeh',b:{stone:.15},txt:'+15% steen'},
+  {id:'gardens',era:2,name:'Hangende Tuinen',b:{food:.15,apples:.25},txt:'+15% voedsel, +25% appels'},
+  {id:'colosseum',era:3,name:'Colosseum',b:{def:.15},txt:'+15% verdediging'},
+  {id:'cathedral',era:4,name:'Kathedraal',b:{gold:.15},txt:'+15% goud'},
+  {id:'sistine',era:5,name:'Sixtijnse Kapel',b:{all:.1},txt:'+10% op alles'},
+  {id:'liberty',era:6,name:'Vrijheidsbeeld',b:{gold:.2,def:.1},txt:'+20% goud, +10% verdediging'},
+  {id:'eiffel',era:7,name:'Eiffeltoren',b:{all:.15},txt:'+15% op alles'},
+  {id:'empire',era:8,name:'Empire State Building',b:{gold:.25,power:.25},txt:'+25% goud en stroom'},
+  {id:'moonbase',era:9,name:'Maanbasis',b:{all:.25,def:.2},txt:'+25% op alles, +20% verdediging'}];
+const WONDERBY={}; WONDERS.forEach(w => WONDERBY[w.id]=w);
+const W_STAGES=5;
+function wonderB(s,k){ let v=0; const w=s&&s.wd; if(!w) return 0; for(const id in w){ if(w[id]<W_STAGES) continue; const d=WONDERBY[id]; if(!d) continue; if(d.b[k]) v+=d.b[k]; if(d.b.all && k!=='def' && k in RESKEY) v+=d.b.all; } return v; }
+function wonderCost(s,w){ const st=(s.wd&&s.wd[w.id])||0, base=ERAS[Math.min(w.era+1,ERAS.length-1)].cost, f=(w.era>=ERAS.length-1?.4:.09)*(1+st*.5), c={};
+  for(const k in base) if(MAIN.indexOf(k)>=0) c[k]=Math.ceil(base[k]*f); return c; }
+function buildWonder(s,w){ if(w.era>s.era) return false; s.wd=s.wd||{}; if((s.wd[w.id]||0)>=W_STAGES || !pay(s,wonderCost(s,w))) return false; s.wd[w.id]=(s.wd[w.id]||0)+1; return true; }
+// ---- temporary effects from events and famous visitors
+function fxM(s,now,k){ let m=1; for(const f of s.fx||[]) if(now<f.until && (f.k===k || (f.k==='all' && k in RESKEY))) m*=f.m; return m; }
+function addFx(s,now,k,m,min){ s.fx=(s.fx||[]).filter(f => now<f.until); s.fx.push({k,m,until:now+min*60000}); }
 
 // Sprites: "Hexagon Pack" by Kenney (kenney.nl), Creative Commons Zero (CC0), re-rendered from the pack's vector file.
 const ATLAS={"castle_large":[2,2,198,238],"scifi_scraper3":[202,2,125,227],"skyscraper":[329,2,115,224],"castle_open":[446,2,199,223],"skyscraper_glass":[647,2,115,215],"scifi_scraper1":[764,2,147,214],"skyscraper_wide":[913,2,110,198],"scifi_scraper2":[1025,2,137,196],"castle_small":[1164,2,213,189],"petrolStation":[2,242,170,186],"rockGrey_large":[174,242,146,185],"sheriff":[322,242,198,182],"saloon":[522,242,133,177],"scifi_corner":[657,242,140,176],"tower":[799,242,96,170],"archway":[897,242,141,166],"mill_factory":[1040,242,186,166],"scifi_factory":[2,430,186,166],"scifi_tower":[190,430,101,165],"cargoPad":[293,430,159,161],"mill_brick":[454,430,160,161],"mill_redBrick":[616,430,160,161],"oldBuilding":[778,430,190,157],"shop":[970,430,132,153],"station":[1104,430,213,153],"tavern":[2,598,164,152],"church":[168,598,150,151],"sillo2":[320,598,84,151],"scifi_ship":[406,598,188,149],"housing":[596,598,135,146],"store":[733,598,146,146],"silo1":[881,598,82,145],"landingpad":[965,598,167,141],"living":[1134,598,162,141],"scifi_pipe":[1298,598,44,141],"cornerShop":[2,752,149,139],"mill_lodge":[153,752,92,139],"house":[247,752,177,138],"villa_large":[426,752,185,134],"watertower":[613,752,83,134],"mill_hightop":[698,752,121,131],"windmill_base":[821,752,83,131],"windmill_complete":[906,752,104,131],"villa":[1012,752,144,130],"mill_overhang":[1158,752,106,126],"militaryOutlook":[1266,752,104,124],"hangar":[2,893,113,123],"rockGrey_medium3":[117,893,102,123],"scifi_hangar":[221,893,113,123],"shops":[336,893,112,122],"beigeBuilding":[450,893,104,121],"rockGrey_medium2":[556,893,78,121],"rockGrey_medium4":[636,893,109,118],"scifi_hangar1":[747,893,130,118],"scifi_hangar2":[879,893,114,114],"militaryTent":[995,893,119,113],"rocket":[1116,893,59,113],"house_small":[1177,893,104,112],"turret_small":[1283,893,99,112],"farm":[2,1018,98,111],"medieval_doorway":[102,1018,96,110],"mill_house":[200,1018,96,110],"mill_way":[298,1018,96,110],"turret_large":[396,1018,103,110],"windmill":[501,1018,97,110],"brickBuilding1":[600,1018,98,109],"mine":[700,1018,88,109],"crane":[790,1018,83,108],"oven":[875,1018,85,106],"ruinsCorner":[962,1018,99,106],"towerRuin":[1063,1018,84,106],"rockGrey_medium1":[1149,1018,81,101],"spaceship":[1232,1018,100,100],"turret_medium":[2,1131,99,99],"farmland":[103,1131,112,98],"oven_outlet":[217,1131,41,96],"dome":[260,1131,97,95],"fountain":[359,1131,91,92],"oil":[452,1131,84,92],"treeRound_large":[538,1131,39,92],"indianTent_back":[579,1131,83,91],"indianTent_front":[664,1131,83,91],"brickBuilding2":[749,1131,89,89],"farmland_empty":[840,1131,118,89],"rockBrown_large":[960,1131,58,89],"treeAlien_large":[1020,1131,43,85],"crystals2":[1065,1131,66,82],"turret_base":[1133,1131,99,82],"dish":[1234,1131,66,81],"lightpost":[1302,1131,36,81],"treePine_large":[1340,1131,51,80],"beigeBuilding_side":[2,1232,69,79],"banner":[73,1232,36,76],"crystals1":[111,1232,74,73],"cactus1":[187,1232,43,68],"cactus2":[232,1232,34,65],"fence":[268,1232,43,65],"treeRound_small":[313,1232,28,64],"carGreen":[343,1232,56,63],"logPile":[401,1232,71,63],"scifi_element1":[474,1232,33,63],"carRed":[509,1232,57,62],"dumpster2":[568,1232,50,61],"well":[620,1232,47,61],"hay":[669,1232,65,60],"pallet_full":[736,1232,53,60],"rockGrey_small2":[791,1232,61,59],"carBlue":[854,1232,56,58],"cargo":[912,1232,56,58],"treePine_small":[970,1232,38,58],"tank":[1010,1232,69,57],"treeAlien_small":[1081,1232,41,57],"dumpster1":[1124,1232,57,55],"horseTrough":[1183,1232,79,55],"rockGrey_small1":[1264,1232,63,52],"tinyBuilding":[1329,1232,47,51],"fire":[2,1313,36,47],"pallet":[40,1313,53,47],"anvil":[95,1313,41,45],"box1":[138,1313,35,45],"rockGrey_small4":[175,1313,50,45],"log":[227,1313,55,42],"ruins_brick1":[284,1313,42,40],"rockBrown_small":[328,1313,41,37],"rockGrey_small3":[371,1313,41,37]};
@@ -921,7 +960,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
 const $ = id => document.getElementById(id);
 const KEY = 'vuursteen-vorst-v2';
 const STILL = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-const TITLES = {w:'Wereldkaart', b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
+const TITLES = {q:'Opdrachten en wonderen', w:'Wereldkaart', b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
 let MOVE=false, MOVESEL=null, WPOS=[], VIEW_S=null, VIEW_NAME='', REPLAY=null, ATTACK=null, prConfirm=0;
 let S, tab = 'b', open = false, dirty = false, localLast = 0, readyState = null, MAPT = {z:1,ox:0,oy:0}, CAM = null, AFTER = null, FX = [], warned = 0, thState = '';
 
@@ -1078,7 +1117,7 @@ function eraHtml(){ const reqs=eraReqs(S), nx=ERAS[S.era+1];
   const rows=reqs.filter(r => r.kind!=='res' && !r.ok).concat(reqs.filter(r => r.kind==='res'), reqs.filter(r => r.kind!=='res' && r.ok));
   const go=canAdvance(S), left=reqs.filter(r=>!r.ok).length;
   return `<button class="buy wide advwide ${go?'ready':''}" id="adv2" data-act="adv" data-arg="" ${go?'':'disabled'}>${go?'Ga naar '+de(nx)+' ▸':`Nog ${left} ${left===1?'eis':'eisen'} te gaan`}</button><p class="hint">${go?'Alles is klaar. Tik op de knop hierboven.':'Hieronder staat wat je nog nodig hebt. Met de knoppen erachter regel je het meteen.'}</p>`+rows.map(reqRow).join(''); }
-function listHtml(){ return tab==='w' ? (typeof worldHtml==='function'?worldHtml():'') : tab==='d' ? defHtml() : tab==='u' ? upHtml() : tab==='s' ? shopHtml() : tab==='e' ? eraHtml() : buildHtml(); }
+function listHtml(){ return tab==='q' ? questHtml() : tab==='w' ? (typeof worldHtml==='function'?worldHtml():'') : tab==='d' ? defHtml() : tab==='u' ? upHtml() : tab==='s' ? shopHtml() : tab==='e' ? eraHtml() : buildHtml(); }
 
 function initStatic(){
   $('res').innerHTML = MAIN.map(k => `<div id="r-${k}"><i class="ic ${k}" title="${RES_NAME[k]}"></i><b class="num"></b><small class="num"></small></div>`).join('');
@@ -1166,6 +1205,10 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'share': if(typeof shareGame==='function') shareGame(); return;
     case 'install': if(typeof doInstall==='function') doInstall(); return;
     case 'vzoom': vZoom(+arg); return;
+    case 'convok': $('event').hidden=true; render(); return;
+    case 'daily': claimDaily(); return;
+    case 'evpick': pickEvent(arg); return;
+    case 'wonder': { const w=WONDERBY[arg]; ok=buildWonder(S,w); if(ok){ onWonder(w); if(typeof tcount==='function') tcount('build',1); } } break;
     case 'report': $('report').hidden=true; return;
     case 'obToggle': S.obOff=!S.obOff; dirty=true; toast(S.obOff?'De opzichter rust even.':'De opzichter bouwt weer mee.'); render(); return;
     case 'world': openWorld(); return;
@@ -1307,9 +1350,105 @@ function start(){
   draw(0,0); net();
 }
 
+// ---- extras: daily missions with a streak, events with choices, famous visitors, world wonders panel, village chronicle
+const DAYMS=86400000;
+function dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function hashStr(x){ let h=2166136261; for(let i=0;i<x.length;i++){ h^=x.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function chron(text){ S.chron=(S.chron||[]); S.chron.unshift({t:Date.now(),text}); if(S.chron.length>40) S.chron.length=40; }
+
+// what we measure, read from the state so no game code has to report it
+function metrics(s){ return {bld:buildings(s), up:Object.values(s.lv||{}).reduce((a,b)=>a+b,0), tap:s.taps||0, win:(s.wins||0)+(s.vw||0),
+  tech:Object.keys(s.tech||{}).length, army:armySize(s), gold:s.res.gold, ev:s.evDone||0, wd:Object.values(s.wd||{}).reduce((a,b)=>a+b,0)}; }
+const QUESTS=[
+  {id:'bld', era:0, goal:s => 4+Math.min(8,s.era), txt:n => `Bouw ${n} gebouwen`},
+  {id:'up', era:0, goal:s => 3+Math.floor(s.era/2), txt:n => `Doe ${n} upgrades`},
+  {id:'tap', era:0, goal:() => 150, txt:n => `Tik ${n} keer om grondstoffen te verzamelen`},
+  {id:'win', era:2, goal:() => 2, txt:n => `Win ${n} gevechten`},
+  {id:'tech', era:1, goal:() => 1, txt:n => `Rond ${n} onderzoek af`},
+  {id:'army', era:2, goal:s => 5+s.era, txt:n => `Train ${n} soldaten`},
+  {id:'gold', era:2, goal:s => Math.max(1000,Math.round(rates(s,Date.now()).gold*900)), txt:n => `Verdien ${fmt(n)} goud`, inc:true},
+  {id:'ev', era:0, goal:() => 1, txt:n => `Kies wat je doet bij een gebeurtenis`},
+  {id:'wd', era:0, goal:() => 1, txt:n => `Bouw een stuk aan je wereldwonder`}];
+const QBY={}; QUESTS.forEach(q => QBY[q.id]=q);
+function ensureQuests(now){ const day=dayKey(now); if(S.dq && S.dq.day===day) return;
+  const pool=QUESTS.filter(q => q.era<=S.era), h=hashStr(day+(typeof ME!=='undefined'&&ME?ME:'x')), pick=[], m=metrics(S);
+  for(let i=0;pick.length<3 && i<40;i++){ const q=pool[(h+i*7919)%pool.length]; if(pick.indexOf(q)<0) pick.push(q); }
+  S.dq={day, q:pick.map(q => ({id:q.id, goal:q.goal(S), base:m[q.id], done:false})), claimed:false}; dirty=true; }
+function questProg(x){ const m=metrics(S)[x.id]; return Math.max(0, m-x.base); }
+function questTick(){ if(!S.dq) return; let ch=false;
+  for(const x of S.dq.q){ if(x.done) continue; if(x.id==='gold'){ const g=S.res.gold; x.acc=(x.acc||0)+Math.max(0,g-(x.last??g)); x.last=g; if(x.acc>=x.goal){ x.done=true; ch=true; } continue; }
+    if(questProg(x)>=x.goal){ x.done=true; ch=true; } }
+  if(ch){ S.gems+=3; dirty=true; toast('Opdracht voltooid! +3 edelstenen',4000); refreshQuestBtn(); if(open && tab==='q') render(); } }
+function claimDaily(){ if(!S.dq || S.dq.claimed || S.dq.q.some(x => !x.done)) return; const today=S.dq.day, y=dayKey(Date.now()-DAYMS);
+  S.streak=S.streak||{n:0,last:''}; S.streak.n = S.streak.last===y ? S.streak.n+1 : S.streak.last===today ? S.streak.n : 1; S.streak.last=today;
+  const g=5+Math.min(7,S.streak.n)*3; S.gems+=g; S.dq.claimed=true; dirty=true;
+  if(S.streak.n%7===0) chron(`${S.streak.n} dagen op rij alle opdrachten gehaald.`);
+  toast(`Dagbeloning: +${g} edelstenen. Reeks: ${S.streak.n} ${S.streak.n===1?'dag':'dagen'}.`,5000); render(); }
+function refreshQuestBtn(){ const b=$('questBtn'); if(!b || !S.dq) return; const d=S.dq.q.filter(x => x.done).length; b.textContent=`Opdrachten ${d}/3`; b.classList.toggle('ready', d===3 && !S.dq.claimed); }
+function questHtml(){ ensureQuests(Date.now()); const st=S.streak||{n:0}, left=DAYMS-(Date.now()-new Date(new Date().toDateString()).getTime());
+  let h=`<h3 class="sub">Opdrachten van vandaag<i class="hint"> · nieuwe over ${fmtLeft(left)}</i></h3>`;
+  h+=S.dq.q.map(x => { const q=QBY[x.id], p=x.id==='gold' ? (x.acc||0) : questProg(x), pc=Math.min(100,Math.round(p/x.goal*100));
+    return `<div class="row quest ${x.done?'done':''}"><h3>${q.txt(x.goal)}<i class="num">${x.done?'klaar · +3':fmt(Math.min(p,x.goal))+' / '+fmt(x.goal)}</i></h3><div class="qbar"><b style="width:${pc}%"></b></div></div>`; }).join('');
+  const all=S.dq.q.every(x => x.done), g=5+Math.min(7,(st.last===dayKey(Date.now()-DAYMS)?st.n+1:1))*3;
+  h+=`<div class="row"><h3>Dagkist<i class="num">reeks ${st.n||0} ${st.n===1?'dag':'dagen'}</i></h3><p>Haal alle drie de opdrachten voor de dagkist. Elke dag op rij wordt hij groter, tot 26 edelstenen op dag 7.</p>
+    <div class="act">${S.dq.claimed?'<span class="pill ok">Vandaag al geopend</span>':`<button class="buy" data-act="daily" data-arg="" ${all?'':'disabled'}>Open de dagkist · +${g}</button>`}</div></div>`;
+  h+=wonderHtml()+chronHtml(); return h; }
+
+// world wonders
+let WFIRST={};
+function wonderHtml(){ const list=WONDERS.filter(w => w.era<=S.era); let h=`<h3 class="sub">Wereldwonderen</h3><p class="hint">Bouw per tijdperk een wonder in vijf stappen. Een af wonder geeft een blijvende bonus. Wie als eerste op de server een wonder afmaakt, krijgt een gouden vermelding.</p>`;
+  for(const w of list){ const st=(S.wd&&S.wd[w.id])||0, done=st>=W_STAGES, f=WFIRST[w.id];
+    h+=`<div class="row wonder ${done?'done':''}"><h3>${w.name}<i class="num">${done?'af':'stap '+st+' / '+W_STAGES}</i></h3><p>${w.txt}${f?` · <b class="gold">Eerst gebouwd door ${esc2(f)}</b>`:''}</p><div class="qbar"><b style="width:${st/W_STAGES*100}%"></b></div>${done?'':actLine('Bouw stap '+(st+1),'wonder',w.id,wonderCost(S,w))}</div>`; }
+  return h; }
+function onWonder(w){ const st=S.wd[w.id]; if(st>=W_STAGES){ chron(`Het wereldwonder ${w.name} is af.`); toast(`${w.name} is af! ${w.txt}.`,6000);
+    if(typeof rpc==='function' && typeof token==='function') rpc('wonder_done',{p_token:token(),p_wonder:w.id}).then(r => { if(r && r.first){ WFIRST[w.id]=r.first; if(r.me) toast(`Jij bent de eerste op de server met ${w.name}!`,6000); render(); } }).catch(()=>{}); } }
+function loadWonders(){ if(typeof rpc!=='function' || typeof token!=='function') return; rpc('wonders_first',{p_token:token()}).then(r => { WFIRST={}; for(const x of r||[]) WFIRST[x.wonder]=x.name; if(open && tab==='q') render(); }).catch(()=>{}); }
+
+// chronicle
+function chronHtml(){ const L=S.chron||[]; if(!L.length) return ''; return `<h3 class="sub">Kroniek van je dorp</h3><div class="row chron">${L.slice(0,12).map(c => `<p><i class="hint">${new Date(c.t).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</i> ${esc2(c.text)}</p>`).join('')}</div>`; }
+
+// events with a choice, and famous visitors
+const FAMOUS=['De eerste vuurmaker','Hammurabi','Archimedes','Julius Caesar','Karel de Grote','Leonardo da Vinci','Michiel de Ruyter','James Watt','Marie Curie','Neil Armstrong'];
+const EVENTS=[
+  {id:'trader', era:0, t:'Een reizende koopman', d:'Hij biedt goud voor een deel van je hout.', a:'Ruil 15% hout', b:'Nee, dank je',
+    go:s => { const w=s.res.wood*.15, g=Math.max(50,rates(s,Date.now()).gold*600+w*.05); s.res.wood-=w; s.res.gold+=g; return `Je ruilde hout voor ${fmt(g)} goud.`; }},
+  {id:'harvest', era:0, t:'Een rijke oogst', d:'De velden staan vol. Wat doe je ermee?', a:'Groot feest: 15 min +50% alles', b:'Opslaan in de schuren',
+    go:(s,n) => { addFx(s,n,'all',1.5,15); return 'Het hele dorp viert feest. 15 minuten +50% productie.'; },
+    no:s => { const f=rates(s,Date.now()).food*900; s.res.food+=f; return `Je sloeg ${fmt(f)} voedsel op.`; }},
+  {id:'sick', era:3, t:'Ziekte in het dorp', d:'Dorpelingen worden ziek. Appels als medicijn kunnen helpen.', a:'Geef appels', b:'Afwachten',
+    go:s => { const a=s.res.apples*.2; s.res.apples-=a; return `Met ${fmt(a)} appels kwam iedereen er weer bovenop.`; }, no:(s,n) => { addFx(s,n,'food',.8,20); return 'Het dorp herstelt langzaam: 20 minuten 20% minder voedsel.'; }},
+  {id:'goldrush', era:2, t:'Goudkoorts', d:'Er is een nieuwe goudader gevonden.', a:'Stuur iedereen erheen', b:'Rustig aan',
+    go:(s,n) => { addFx(s,n,'gold',2,10); addFx(s,n,'food',.85,10); return '10 minuten dubbel goud, maar minder voedsel.'; }, no:(s,n) => { addFx(s,n,'gold',1.3,10); return '10 minuten +30% goud.'; }},
+  {id:'refugees', era:2, t:'Vluchtelingen bij de poort', d:'Een groep vluchtelingen vraagt om onderdak.', a:'Laat ze binnen', b:'Stuur ze door',
+    go:s => { const n=Math.min(5,Math.max(0,guardCap(s)-armySize(s))); s.guards+=n; s.res.food*=.9; return n?`${n} van hen sluiten zich aan bij je leger.`:'Ze helpen mee in het dorp, maar eten van je voorraad.'; }},
+  {id:'storm', era:1, t:'Zware storm', d:'Een storm raast over het dorp.', a:'Repareer meteen (hout)', b:'Laat maar',
+    go:s => { s.res.wood*=.85; return 'Alles is gerepareerd met je hout.'; }, no:(s,n) => { addFx(s,n,'all',.85,15); return 'Een kwartier 15% minder productie door de schade.'; }},
+  {id:'famous', era:0, t:'Bijzonder bezoek', d:'', a:'Luister naar de bezoeker', b:'Geen tijd',
+    go:(s,n) => { addFx(s,n,'all',1.25,20); return '20 minuten +25% productie dankzij het bezoek.'; }}];
+let EVNOW=null;
+function eventTick(now){ if(EVNOW || VIEW_S || REPLAY || ATTACK || REPORT) return; if(!S.evAt){ S.evAt=now+20*60000; return; } if(now<S.evAt) return;
+  const pool=EVENTS.filter(e => e.era<=S.era), e=pool[Math.floor(Math.random()*pool.length)]; S.evAt=now+(35+Math.random()*40)*60000; showEvent(e); }
+function showEvent(e){ EVNOW=e; let el=$('event'); if(!el){ el=mk('div','report'); el.id='event'; el.setAttribute('role','dialog'); document.body.append(el); }
+  const d = e.id==='famous' ? `${FAMOUS[Math.min(S.era,FAMOUS.length-1)]} komt langs in je dorp en deelt zijn kennis.` : e.d;
+  el.innerHTML=`<div class="card"><h2>${e.id==='famous'?FAMOUS[Math.min(S.era,FAMOUS.length-1)]:e.t}</h2><p>${d}</p><div class="evbtns"><button class="buy wide" data-act="evpick" data-arg="a">${e.a}</button><button class="buy alt wide" data-act="evpick" data-arg="b">${e.b}</button></div></div>`; el.hidden=false; }
+function pickEvent(x){ const e=EVNOW; if(!e) return; const now=Date.now(); let msg='';
+  if(x==='a') msg=e.go(S,now); else if(e.no) msg=e.no(S,now); else msg='Je liet het aan je voorbij gaan.';
+  S.evDone=(S.evDone||0)+1; EVNOW=null; $('event').hidden=true; dirty=true; if(msg) toast(msg,5000);
+  if(e.id==='famous' && x==='a') chron(`${FAMOUS[Math.min(S.era,FAMOUS.length-1)]} bezocht het dorp.`); render(); }
+function fxChip(){ const now=Date.now(), L=(S.fx||[]).filter(f => now<f.until); if(!L.length) return '';
+  return L.map(f => `${f.k==='all'?'alles':RES_NAME[f.k].toLowerCase()} ${f.m>1?'+':''}${Math.round((f.m-1)*100)}% · ${fmtLeft(f.until-now)}`).join(' · '); }
+
+// era advance and big wins go into the chronicle
+let lastEra=null;
+function showConverted(){ delete S.converted; dirty=true; let el=$('event'); if(!el){ el=mk('div','report'); el.id='event'; el.setAttribute('role','dialog'); document.body.append(el); }
+  el.innerHTML=`<div class="card"><h2>Nieuwe spelbalans</h2><p>De getallen in het spel waren veel te groot geworden. Gebouwen worden nu sneller duurder, zodat je er minder nodig hebt en elk gebouw meer telt.</p><p>Je houdt je tijdperk, niveaus, onderzoek, edelstenen en kronen. Het aantal gebouwen en je voorraad zijn omgerekend naar de nieuwe balans.</p><button class="buy wide" data-act="convok" data-arg="">Verder spelen</button></div>`; el.hidden=false; }
+setInterval(() => { if(typeof S==='undefined' || !S || VIEW_S) return; const now=Date.now(); if(S.converted && !EVNOW && !REPORT){ showConverted(); return; }
+  if(lastEra!==null && S.era>lastEra) chron(`Het dorp ging naar ${ERAS[S.era].name}.`); lastEra=S.era;
+  ensureQuests(now); questTick(); eventTick(now); refreshQuestBtn(); const fc=$('fxChip'); if(fc){ const t=fxChip(); fc.textContent=t; fc.hidden=!t; } }, 1000);
+
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22d';
-const NEWS=['Echte grondstoffen: voedsel, hout, steen, goud en alle bijproducten hebben nu 3D-iconen, van broden en vis tot goudmunten, staven ijzer en olievaten.','Scherpere graphics, een nieuwe wereldkaart en inzoomen in je dorp met twee vingers of de + en −.'];
+const GAME_VERSION='2026-11-22e';
+const NEWS=['Nieuwe spelbalans: geen absurde getallen meer. Gebouwen worden sneller duurder, zodat elk gebouw meer telt. Je tijdperk, niveaus, onderzoek en edelstenen blijven.','Wereldwonderen: van Stonehenge tot de Maanbasis. Bouw ze in vijf stappen voor een blijvende bonus. Wie als eerste op de server een wonder af heeft, krijgt een gouden vermelding.','Dagelijkse opdrachten: drie per dag, met een dagkist die elke dag op rij groter wordt.','Gebeurtenissen: koopmannen, stormen, goudkoorts en beroemde bezoekers als Da Vinci. Jij kiest wat je doet.','Kroniek: je dorp houdt zijn eigen geschiedenis bij.','3D-iconen voor alle grondstoffen.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1373,6 +1512,7 @@ async function afterSync(r, first){
   if(+r.results>0) loadResults();
   if(+r.inbox>0 && typeof loadInbox==='function') loadInbox();
   if(first && typeof loadTour==='function') loadTour(false);
+  if(first && typeof loadWonders==='function') loadWonders();
   if(first){ renderAlfa(); showNews(); }
   if(OWNER && Date.now()-adminT>60000) adminLoad();
 }
@@ -1539,7 +1679,7 @@ async function loadResults(){ let L=[]; try{ L=await rpc('my_results',{p_token:t
     const lostTxt=Object.keys(lost).length ? ' Je verloor '+UNITS.filter(x=>lost[x.id]).map(x=>lost[x.id]+' '+unitName(x,S.era).toLowerCase()).join(', ')+'.' : '';
     let msg='';
     if(r.kind==='player'){ const lg=Math.floor((+(r.loot&&r.loot.gold)||0)*lootMul), lf=Math.floor((+(r.loot&&r.loot.food)||0)*lootMul);
-      if(r.won){ S.res.gold+=lg; S.res.food+=lf; if(typeof tcount==='function') tcount('wins',1); } heroXp(S, r.won?50:15);
+      if(r.won){ S.res.gold+=lg; S.res.food+=lf; S.vw=(S.vw||0)+1; if(typeof tcount==='function') tcount('wins',1); } heroXp(S, r.won?50:15);
       msg = r.won ? `Je hebt ${esc(r.name)} verslagen! Buit: ${fmt(lg)} goud en ${fmt(lf)} voedsel.${lostTxt}` : `De aanval op ${esc(r.name)} is mislukt (${r.atk} tegen ${r.def}).${lostTxt}`; }
     else if(r.kind==='camp'){ const sec=60+30*(+r.lv||1); let lg=0, lf=0;
       if(r.won){ lg=Math.max(+rw.gold||0, Math.round(g.gold*sec)); lf=Math.max(+rw.food||0, Math.round(g.food*sec)); S.res.gold+=lg; S.res.food+=lf; S.gems+=(+rw.gems||0); if(typeof tcount==='function') tcount('wins',1); }
