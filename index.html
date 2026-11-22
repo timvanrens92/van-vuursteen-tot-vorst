@@ -399,7 +399,7 @@ const GEMUP = [
   {id:'gb',  name:'Bouwmeester',   desc:'Bouwen en upgraden wordt blijvend 8% goedkoper per niveau.', base:20, max:5},
   {id:'gk',  name:'Rentmeester',   desc:'Het onderhoud van je stad wordt blijvend 10% lager per niveau.', base:20, max:5},
   {id:'gs',  name:'Molenaar',      desc:'Blijvend +50% bijproducten (van appels tot stroom) per niveau.', base:20, max:4},
-  {id:'ob',  name:'Opzichter',     desc:'Een bouwmeester die zelf het goedkoopste gebouw bouwt zodra het kan. Hij houdt altijd een kwart van je voorraad achter. Elk niveau bouwt hij vaker.', base:40, max:3},
+  {id:'ob',  name:'Opzichter',     desc:'Een bouwmeester die zelf bouwt en upgradet zodra het kan, ook als je weg bent. Hij houdt altijd een kwart van je voorraad achter. Elk niveau werkt hij vaker.', base:40, max:3},
 ];
 const GEMUSE = [
   {id:'warp',  name:'Tijdsprong',     desc:'Krijg direct 1 uur productie.', cost:10},
@@ -550,10 +550,11 @@ function eraReqs(s){ const e=ERAS[s.era+1], out=[]; if(!e) return out;
 function canAdvance(s){ const r=eraReqs(s); return r.length>0 && r.every(x=>x.ok); }
 function advance(s,now){ if(!canAdvance(s)) return false; pay(s,ERAS[s.era+1].cost); s.era++; s.gems+=5; s.rn=0; if(s.era===2) s.raidAt=now+RAID_MS; syncMap(s); return true; }
 
-function shown(s,d){ const n=s.b[d.id]||0; return n ? Math.min(4,Math.ceil(n/6)) : 0; }
+function shown(s,d){ const n=s.b[d.id]||0; return n ? (n>=25 ? 2 : 1) : 0; }
 function syncMap(s){ for(const k in s.map) if(!SLOTKEY[k]) delete s.map[k];
   const R=RAD[s.era], free=SLOTS.filter(t => t.ring<=R && !s.map['t'+t.idx] && !s.deco['t'+t.idx]), cnt={};
-  for(const k in s.map) cnt[s.map[k]]=(cnt[s.map[k]]||0)+1;
+  for(const k of Object.keys(s.map).sort((a,b)=>SLOTS.findIndex(x=>"t"+x.idx===a)-SLOTS.findIndex(x=>"t"+x.idx===b))){ const id=s.map[k], d=BY[id]; if(!d) continue; if((cnt[id]||0) >= shown(s,d)){ delete s.map[k]; const tl=SLOTS.find(x => 't'+x.idx===k); if(tl && tl.ring<=R) free.push(tl); } else cnt[id]=(cnt[id]||0)+1; }
+  free.sort((a,b)=>SLOTS.indexOf(a)-SLOTS.indexOf(b));
   for(const d of BUILD){ if(!shown(s,d) || cnt[d.id]) continue; const t=free.shift();
     if(t){ s.map['t'+t.idx]=d.id; cnt[d.id]=1; continue; }
     let big=null; for(const id in cnt) if(cnt[id]>1 && (!big || cnt[id]>cnt[big])) big=id; if(!big) continue;
@@ -625,14 +626,21 @@ function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 
 // ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
-const OB_EVERY=[0,40,20,10];
-function overseerPick(s){ let best=null, bc=Infinity;
+const OB_EVERY=[0,15,6,2];
+function overseerPick(s,fl){ let best=null, bc=Infinity;
   for(const d of BUILD){ if(d.era>s.era) continue; const c=buildCost(s,d); let ok=true, sum=0;
-    for(const k in c){ if(c[k] > s.res[k]*.75){ ok=false; break; } sum+=c[k]; }
+    for(const k in c){ if(s.res[k]-c[k] < (fl?fl[k]:s.res[k]*.25)){ ok=false; break; } sum+=c[k]; }
     if(ok && sum<bc){ bc=sum; best=d; } }
   return best; }
 function overseer(s,now){ if(!s.ob || s.obOff) return null; if(now-(s.obT||0) < OB_EVERY[Math.min(3,s.ob)]*1000) return null; s.obT=now;
-  const d=overseerPick(s); return d && buy(s,d) ? d : null; }
+  let first=null;
+  const fl={}; for(const k in s.res) fl[k]=s.res[k]*.25;
+  for(let i=0;i<300;i++){ let d=overseerUpPick(s,fl), ok=false; if(d) ok=upgrade(s,d); else { d=overseerPick(s,fl); if(d) ok=buy(s,d); } if(!ok) break; first=first||d; }
+  return first; }
+function keeps(s,c,fl){ for(const k in c) if(s.res[k]-c[k] < (fl?fl[k]:s.res[k]*.25)) return false; return true; }
+function overseerUpPick(s,fl){ let best=null, bc=Infinity;
+  for(const d of BUILD){ if(d.era>s.era || !s.b[d.id] || !canUpgrade(s,d)) continue; const c=upCost(s,d); if(!keeps(s,c,fl)) continue; let sum=0; for(const k in c) sum+=c[k]; if(sum<bc){ bc=sum; best=d; } }
+  return best; }
 
 // ---- day and night (the player's own clock) and the seasons (the calendar)
 const NIGHT_IDS={smithy:1,factory:1,academy:1,office:1,mill:1};
@@ -862,7 +870,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return;
         if(ring===0){ const L=CENTER[Math.min(e,CENTER.length-1)]; if(e<2) stand(c,'fire',x-24,y+8,1.1+Math.sin(t*9)*.06); ctop=stand(c,L[0],x,y,L[1]);
           if(e===9) stand(c,'rocket',x+30,y+8,.9); if(e>=1) smoke(c,x-8,ctop+10,t,3);
           c.strokeStyle='#4a3520'; c.lineWidth=1.6; c.beginPath(); c.moveTo(x+14,ctop+16); c.lineTo(x+14,ctop-4); c.stroke(); const fl=Math.sin(t*3)*1.5; poly(c,'#2b2118',[x+13,ctop-5, x+28,ctop-1+fl, x+13,ctop+5]); poly(c,(FLAGS[s.flag]||FLAGS[0]).col,[x+14,ctop-3.6, x+25.5,ctop-.8+fl, x+14,ctop+3.4]); }
-        else if(id && ring<=R){ const L=s.lv[id]||1, tp=drawBuilding(c,s,id,x,y,L,t); lit.push([x,(y+tp)/2]); if(L>1) pips(c,x,tp-6,L); if(opt.marks && opt.marks[id] && !tops[id]){ tops[id]=1; marks.push([x,tp-(L>1?16:8)]); }
+        else if(id && ring<=R){ const L=s.lv[id]||1, tp=drawBuilding(c,s,id,x,y,L,t); lit.push([x,(y+tp)/2]); if(opt.marks && opt.marks[id] && !tops[id]){ tops[id]=1; marks.push([x,tp-(L>1?16:8)]); }
           if(opt.fx) for(const fx of opt.fx) if(fx.id===id && fx.age<1.4){ for(let q=0;q<5;q++){ const u=(fx.age/1.4+q*.2)%1; dot(c,'rgba(255,236,150,'+(1-u).toFixed(2)+')',x+Math.sin(q*2.4)*14,tp+20-u*42,2.6-u*1.2); } } }
         else if(ring>R && !(j>MID && Math.abs(i-MID)<=2)){ const r=h2(i,j); if(r<.78){ const nm=r<.3?'treePine_large':r<.5?'treeRound_large':r<.66?'treePine_small':'treeRound_small'; stand(c,nm,x+(h2(j,i)-.5)*16,y+(h2(i+3,j)-.5)*8,1.25); }
           else if(r>.95) stand(c,'rockGrey_small1',x,y,1); }
@@ -1041,7 +1049,7 @@ function shopHtml(){
   return h; }
 function buildHtml(){ const reqs=eraReqs(S), need={}; for(const r of reqs) if(r.kind==='b' && !r.ok) need[r.id]=1;
   const list=BUILD.filter(d => d.era<=S.era).sort((x,y) => (need[y.id]||0)-(need[x.id]||0) || y.era-x.era);
-  let h=`<div class="act maxrow"><button class="buy alt wide" id="allMax" data-act="allmax" data-arg="">Alles max upgraden</button></div><p class="hint">Max gebruikt al je grondstoffen voor dat gebouw. Upgrades gaan eerst naar de nieuwste gebouwen.</p>`+list.map(d => buildingRow(d,!!need[d.id])).join('');
+  let h=`<div class="act maxrow"><button class="buy alt" id="allBuild" data-act="allbuild" data-arg="">Alles max bouwen</button><button class="buy alt" id="allMax" data-act="allmax" data-arg="">Alles max upgraden</button></div><p class="hint">Max gebruikt al je grondstoffen. Wil je het helemaal niet meer zelf doen? De Opzichter (Winkel) bouwt en upgradet automatisch.</p>`+list.map(d => buildingRow(d,!!need[d.id])).join('');
   const nx=ERAS[S.era+1], fresh=BUILD.filter(d => d.era===S.era+1).map(d => d.name);
   if(nx && fresh.length) h+=`<p class="hint">Nieuw in ${de(nx)}: ${fresh.join(', ')}.</p>`;
   return h+`<p class="hint">Elk gebouw geeft ook wat onderhoud. Het overzicht staat bij Verbeter.</p>`; }
@@ -1106,6 +1114,7 @@ function refresh(){ const now=Date.now(), r=rates(S,now);
   document.querySelectorAll('button[data-cost]').forEach(b => { if(!b._c) b._c=JSON.parse(b.dataset.cost); b.disabled = !can(S,b._c); });
   document.querySelectorAll('button[data-max]').forEach(b => { const d=BY[b.dataset.arg], u=b.dataset.max==='u', k=u?maxUp(S,d):maxBuild(S,d), L=S.lv[d.id]||1;
     const t = !k ? (u?'Upgrade max':'Bouw max') : u ? `Upgrade max · naar niveau ${L+k}` : `Bouw max · ×${fmt(k)}`; if(b.textContent!==t) b.textContent=t; b.disabled=!k; });
+  const ab2=$('allBuild'); if(ab2){ ab2.disabled=!BUILD.some(d=>d.era<=S.era && can(S,buildCost(S,d))); }
   const am=$('allMax'); if(am){ let k=0; for(const d of BUILD) if(d.era<=S.era) k+=maxUp(S,d)?1:0; am.disabled=!k; }
   document.querySelectorAll('button[data-gems]').forEach(b => { b.disabled = S.gems < +b.dataset.gems; });
   const rl=$('raidLeft'); if(rl) rl.textContent = now<S.peaceUntil ? 'Vredesverdrag: nog '+fmtLeft(S.peaceUntil-now)+' geen overvallen.' : S.raidAt ? 'Volgende overval over '+fmtLeft(S.raidAt-now)+'.' : '';
@@ -1126,6 +1135,8 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'call': ok=callRaid(S,now); if(ok) toast('De rovers komen eraan!'); break;
     case 'bmax': { const k=buyMax(S,BY[arg]); ok=k>0; if(ok) toast(`${k}× ${BY[arg].name.toLowerCase()} gebouwd.`); } break;
     case 'umax': { const d=BY[arg], L0=S.lv[arg]||1, k=upMax(S,d); ok=k>0; if(ok) toast(`${d.name} van niveau ${L0} naar ${S.lv[arg]}.`); } break;
+    case 'allbuild': { let n=0; for(let round=0; round<3; round++) for(const d of BUILD.filter(d=>d.era<=S.era).sort((a,b)=>b.era-a.era)) n+=buyMax(S,d);
+      ok=n>0; if(ok) toast(`${fmt(n)} gebouwen gebouwd.`); } break;
     case 'allmax': { let n=0; for(let round=0; round<12; round++){ let any=false; for(const d of BUILD.filter(d=>d.era<=S.era && S.b[d.id]).sort((a,b)=>b.era-a.era)) if(upgrade(S,d)){ any=true; n++; } if(!any) break; }
       ok=n>0; if(ok) toast(`${n} upgrades gedaan.`); } break;
     case 'up': ok=upgrade(S,BY[arg]); if(ok){ const L=S.lv[arg], br=BY[arg].side.filter(x => x.l===L).map(x => RES_NAME[x.r].toLowerCase());
@@ -1272,8 +1283,8 @@ function start(){
 }
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22';
-const NEWS=['Nieuwe graphics: elk tijdperk heeft eigen 3D-gebouwen, van tentjes in de Steentijd tot raketten in de Ruimtetijd.','Max-knoppen: bouw of upgrade in één tik zoveel als je kunt betalen. Bovenaan Bouwen staat "Alles max upgraden".','Nieuw tijdperk: ben je klaar, dan verschijnt een grote gouden knop in je dorp. Ook de rode balk bovenaan brengt je meteen verder.','Het spel past beter op kleine schermen. De tabbladen onderin blijven altijd zichtbaar, en een mededeling kun je wegklikken.'];
+const GAME_VERSION='2026-11-22b';
+const NEWS=['Rustiger dorp: elk gebouwtype staat nog maar één of twee keer in je dorp, zonder de rijen sterretjes. Je aantallen en niveaus blijven gewoon staan.','Alles max bouwen: bovenaan Bouwen bouw je in één tik van elk gebouw zoveel als je kunt betalen.','De Opzichter (Winkel) bouwt én upgradet nu automatisch, veel vaker dan eerst. Hij houdt een kwart van je voorraad achter.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
