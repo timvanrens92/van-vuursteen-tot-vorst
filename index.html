@@ -276,6 +276,14 @@ b.gold{color:#e3b84c}
 .pass .buy{padding:3px 2px;font-size:12px;width:100%;min-height:0}.pass .buy.gold{background:var(--gold);color:#1b140c}
 .pass .buy:disabled{opacity:.38}.pass .buy{min-width:0}
 
+.newsticker{position:absolute;left:8px;right:8px;bottom:62px;z-index:3;background:rgba(24,33,27,.88);color:var(--bone);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.newsl p{margin:4px 0;font-size:14px}
+.row.warn{border:1px solid rgba(217,85,63,.7)}
+.secrets p{margin:4px 0}
+.arts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}.arts span{background:rgba(255,255,255,.06);border-radius:7px;padding:6px;text-align:center;font-size:13px;color:var(--muted)}.arts span.have{background:rgba(240,197,78,.18);color:#f3dc9a;font-weight:700}
+.vs{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-weight:800;font-size:14px}.vsbar{height:10px;border-radius:6px;background:#d9553f;overflow:hidden}.vsbar b{display:block;height:100%;background:#4caf6a}
+.card.found h2{color:#8a5a12}
+
 </style>
 </head>
 <body>
@@ -300,6 +308,7 @@ b.gold{color:#e3b84c}
     <button class="questbtn" id="questBtn" data-act="tab" data-arg="q">Opdrachten</button>
     <button class="photobtn" id="photoBtn" data-act="photo" data-arg="" aria-label="Maak een foto van je dorp">Foto</button>
     <div class="fxchip" id="fxChip" hidden></div>
+    <div class="newsticker" id="newsTicker" hidden></div>
     <div class="bubble" id="bubble" hidden></div>
     <button class="buy movebtn" id="moveBtn" data-act="move" data-arg="" hidden>Klaar met verplaatsen</button>
     <button class="worldbtn" id="worldBtn" data-act="world" data-arg="">Wereld</button>
@@ -320,9 +329,13 @@ b.gold{color:#e3b84c}
         <div class="list" id="rankList"></div>
         <h3 class="sub">Weekendtoernooi</h3>
         <div id="tourBox"></div>
+        <div id="rivalBox"></div>
+        <h3 class="sub">Wereldnieuws</h3>
+        <div id="newsBox"><p class="hint">Laden…</p></div>
         <h3 class="sub">Wereldbaas</h3>
         <div id="bossBox"><p class="hint">Laden…</p></div>
         <h3 class="sub">Alliantie</h3>
+        <div id="siegeBox"></div>
         <div id="clanBox"><p class="hint">Laden…</p></div>
         <div id="routeBox"></div>
         <div id="crestBox"></div>
@@ -479,7 +492,7 @@ function gross(s,now){ const r={}; for(const k of RES) r[k]=0; const m=mult(s,no
   for(const d of BUILD){ const n=s.b[d.id]||0; if(!n) continue; const L=s.lv[d.id]||1;
     const mi=mile(n);
     const nb=NIGHT_IDS[d.id]&&isNight(now)?1.25:1;
-    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*nb*(1+tb(s,k)+seasonFx(now,k)+wonderB(s,k)+extB(k))*fxM(s,now,k);
+    for(const k in d.out) r[k]+=d.out[k]*n*LVL[L-1]*m*mi*nb*(1+tb(s,k)+seasonFx(now,k)+wonderB(s,k)+extB(k)+bonusB(s,k))*fxM(s,now,k);
     for(const sd of d.side) if(L>=sd.l && (!sd.e || s.era>=sd.e)) r[sd.r]+=sd.q*n*LVL[L-sd.l]*sm*mi; }
   return r; }
 function buildings(s){ let n=0; for(const k in s.b) n+=s.b[k]; return n; }
@@ -494,7 +507,7 @@ function upkeep(s){ const nb=buildings(s), f=(1-.1*(s.gk||0))*(1-tb(s,'upkeep'))
   return u; }
 function rates(s,now){ const r=gross(s,now), u=upkeep(s); for(const k in u) r[k]*=1-u[k]; return r; }
 function scaled(cost,f){ const c={}; for(const k in cost) c[k]=Math.ceil(cost[k]*f); return c; }
-function disc(s){ return (1-.08*s.gb)*(1-tb(s,'build')); }
+function disc(s){ return (1-.08*s.gb)*(1-tb(s,'build'))*(1-bonusB(s,'build')); }
 function buildCost(s,d){ return scaled(d.cost, Math.pow(d.g||GROWTH, s.b[d.id]||0)*disc(s)); }
 function bulkCost(s,d,k){ const g=d.g||GROWTH, n=s.b[d.id]||0; let f=0; for(let q=0;q<k;q++) f+=Math.pow(g,n+q); return scaled(d.cost,f*disc(s)); }
 function buyBulk(s,d,k){ if(d.era>s.era || !pay(s,bulkCost(s,d,k))) return false; s.b[d.id]=(s.b[d.id]||0)+k; if(!s.lv[d.id]) s.lv[d.id]=1; syncMap(s); return true; }
@@ -560,7 +573,7 @@ function towerCost(s){ return scaled(s.era>=7 ? {stone:1500,steel:40} : {stone:1
 function buyTower(s){ if(s.towers>=towerCap(s) || !pay(s,towerCost(s))) return false; s.towers++; return true; }
 function defMult(s){ return Math.pow(1.3,Math.max(0,s.era-2)); }
 function guardPower(s){ return 3.5*(1+.25*Math.max(0,lvl(s,'barracks')-1))*heroMult(s); }
-function defence(s,now){ const a=army(s,now); let d=a.w; for(const x of UNITS) d+=a[x.id][1]; return Math.round(d*(1+wonderB(s,'def'))); }
+function defence(s,now){ const a=army(s,now); let d=a.w; for(const x of UNITS) d+=a[x.id][1]; return Math.round(d*(1+wonderB(s,'def')+bonusB(s,'def'))); }
 // attack strength against other players: only guards march out
 function attackPower(s,now){ const a=army(s,now); let t=0; for(const x of UNITS) t+=a[x.id][0]; return t; }
 // fight with counters, the same formula the server uses (sie breaks walls, cavalry at home blunts siege)
@@ -668,7 +681,7 @@ const PR_ERA = 6;
 function prMult(s){ return 1+.5*(s.pr||0); }
 function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
 function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
-  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt']) keep[k]=s[k];
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt','dyn','sec','art','sp']) keep[k]=s[k];
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 
 // ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
@@ -739,6 +752,33 @@ function addFx(s,now,k,m,min){ s.fx=(s.fx||[]).filter(f => now<f.until); s.fx.pu
 // online bonuses, set by the alliance and trade routes (0 offline)
 let CLAN_BONUS=0, ROUTE_N=0;
 function extB(k){ return CLAN_BONUS + (k==='gold'?ROUTE_N*.05:0); }
+
+// ---- dynasty: after a crown (prestige) a new heir with a trait takes over
+const TRAITS=[{id:'builder',name:'de Bouwer',eff:{build:.1},txt:'bouwen 10% goedkoper'},{id:'warrior',name:'de Strijder',eff:{def:.15},txt:'+15% verdediging'},
+  {id:'trader',name:'de Handelaar',eff:{gold:.15},txt:'+15% goud'},{id:'farmer',name:'de Boer',eff:{food:.2},txt:'+20% voedsel'},{id:'woodman',name:'de Houtvester',eff:{wood:.2},txt:'+20% hout'},
+  {id:'mason',name:'de Steenhouwer',eff:{stone:.2},txt:'+20% steen'},{id:'sage',name:'de Wijze',eff:{all:.06},txt:'+6% op alles'}];
+const TRAITBY={}; TRAITS.forEach(x => TRAITBY[x.id]=x);
+const HEIR_NAMES=['Willem','Juliana','Floris','Ada','Hendrik','Beatrix','Maurits','Emma','Frederik','Louise','Karel','Mathilde','Otto','Sophie','Jan','Wilhelmina','Diederik','Margriet'];
+// ---- secret discoveries: hidden combinations that give a lasting bonus
+const SECRETS=[
+  {id:'smiths',name:'Het Smidsgilde',hint:'Iets met veel smederijen en mijnen…',eff:{iron:.15,gold:.03},ok:s => (s.b.smithy||0)>=10 && (s.b.mine||0)>=8},
+  {id:'granary',name:'De Grote Graanschuur',hint:'Boerderijen en zagerijen werken samen…',eff:{food:.06},ok:s => (s.b.farm||0)>=15 && (s.b.mill||0)>=8},
+  {id:'mason',name:'Het Steenhouwersgeheim',hint:'Een steengroeve op het hoogste niveau…',eff:{stone:.08},ok:s => (s.lv.quarry||0)>=5},
+  {id:'fortress',name:'De Onneembare Vesting',hint:'Hoge muren en veel torens…',eff:{def:.1},ok:s => (s.wall||0)>=3 && (s.towers||0)>=6},
+  {id:'traveler',name:'De Wereldreiziger',hint:'Win vaak buiten je eigen muren…',eff:{gold:.06},ok:s => (s.vw||0)>=10},
+  {id:'tapper',name:'De Noeste Arbeider',hint:'Werk zelf heel, heel hard…',eff:{all:.03},ok:s => (s.taps||0)>=5000},
+  {id:'wonders',name:'De Wonderbouwer',hint:'Meerdere wereldwonderen…',eff:{all:.05},ok:s => Object.values(s.wd||{}).filter(x => x>=5).length>=3},
+  {id:'wisdom',name:'De Oude Wijsheid',hint:'Veel onderzoek afronden…',eff:{all:.03},ok:s => Object.keys(s.tech||{}).length>=10},
+  {id:'army',name:'Het Staande Leger',hint:'Een groot leger met een sterke held…',eff:{def:.08},ok:s => armySize(s)>=60 && s.hero && s.hero.lv>=10}];
+// ---- artifacts: rare finds, complete a collection for a bonus
+const ARTSETS=[{id:'old',name:'Oude beschavingen',eff:{stone:.1},items:['Steen van Rosetta','Masker van Toetanchamon','Terracotta-krijger','Schild van Leonidas']},
+  {id:'mid',name:'Ridders en koningen',eff:{gold:.1},items:['Heilige Graal','Zwaard Excalibur','Magna Carta','Kroon van Karel de Grote']},
+  {id:'new',name:'Uitvindingen',eff:{all:.08},items:['Gloeilamp van Edison','Telefoon van Bell','Enigma-machine','Maansteen van Apollo']}];
+function bonusB(s,k){ let v=0; const add=e => { if(!e) return; if(e[k]) v+=e[k]; if(e.all && k!=='def' && k!=='build') v+=e.all; };
+  if(s.heir && TRAITBY[s.heir.trait]) add(TRAITBY[s.heir.trait].eff);
+  for(const x of SECRETS) if(s.sec && s.sec[x.id]) add(x.eff);
+  for(const set of ARTSETS) if(s.art && set.items.every(n => s.art[n])) add(set.eff);
+  return k==='build' ? Math.min(.3,v) : v; }
 
 // Sprites: "Hexagon Pack" by Kenney (kenney.nl), Creative Commons Zero (CC0), re-rendered from the pack's vector file.
 const ATLAS={"castle_large":[2,2,198,238],"scifi_scraper3":[202,2,125,227],"skyscraper":[329,2,115,224],"castle_open":[446,2,199,223],"skyscraper_glass":[647,2,115,215],"scifi_scraper1":[764,2,147,214],"skyscraper_wide":[913,2,110,198],"scifi_scraper2":[1025,2,137,196],"castle_small":[1164,2,213,189],"petrolStation":[2,242,170,186],"rockGrey_large":[174,242,146,185],"sheriff":[322,242,198,182],"saloon":[522,242,133,177],"scifi_corner":[657,242,140,176],"tower":[799,242,96,170],"archway":[897,242,141,166],"mill_factory":[1040,242,186,166],"scifi_factory":[2,430,186,166],"scifi_tower":[190,430,101,165],"cargoPad":[293,430,159,161],"mill_brick":[454,430,160,161],"mill_redBrick":[616,430,160,161],"oldBuilding":[778,430,190,157],"shop":[970,430,132,153],"station":[1104,430,213,153],"tavern":[2,598,164,152],"church":[168,598,150,151],"sillo2":[320,598,84,151],"scifi_ship":[406,598,188,149],"housing":[596,598,135,146],"store":[733,598,146,146],"silo1":[881,598,82,145],"landingpad":[965,598,167,141],"living":[1134,598,162,141],"scifi_pipe":[1298,598,44,141],"cornerShop":[2,752,149,139],"mill_lodge":[153,752,92,139],"house":[247,752,177,138],"villa_large":[426,752,185,134],"watertower":[613,752,83,134],"mill_hightop":[698,752,121,131],"windmill_base":[821,752,83,131],"windmill_complete":[906,752,104,131],"villa":[1012,752,144,130],"mill_overhang":[1158,752,106,126],"militaryOutlook":[1266,752,104,124],"hangar":[2,893,113,123],"rockGrey_medium3":[117,893,102,123],"scifi_hangar":[221,893,113,123],"shops":[336,893,112,122],"beigeBuilding":[450,893,104,121],"rockGrey_medium2":[556,893,78,121],"rockGrey_medium4":[636,893,109,118],"scifi_hangar1":[747,893,130,118],"scifi_hangar2":[879,893,114,114],"militaryTent":[995,893,119,113],"rocket":[1116,893,59,113],"house_small":[1177,893,104,112],"turret_small":[1283,893,99,112],"farm":[2,1018,98,111],"medieval_doorway":[102,1018,96,110],"mill_house":[200,1018,96,110],"mill_way":[298,1018,96,110],"turret_large":[396,1018,103,110],"windmill":[501,1018,97,110],"brickBuilding1":[600,1018,98,109],"mine":[700,1018,88,109],"crane":[790,1018,83,108],"oven":[875,1018,85,106],"ruinsCorner":[962,1018,99,106],"towerRuin":[1063,1018,84,106],"rockGrey_medium1":[1149,1018,81,101],"spaceship":[1232,1018,100,100],"turret_medium":[2,1131,99,99],"farmland":[103,1131,112,98],"oven_outlet":[217,1131,41,96],"dome":[260,1131,97,95],"fountain":[359,1131,91,92],"oil":[452,1131,84,92],"treeRound_large":[538,1131,39,92],"indianTent_back":[579,1131,83,91],"indianTent_front":[664,1131,83,91],"brickBuilding2":[749,1131,89,89],"farmland_empty":[840,1131,118,89],"rockBrown_large":[960,1131,58,89],"treeAlien_large":[1020,1131,43,85],"crystals2":[1065,1131,66,82],"turret_base":[1133,1131,99,82],"dish":[1234,1131,66,81],"lightpost":[1302,1131,36,81],"treePine_large":[1340,1131,51,80],"beigeBuilding_side":[2,1232,69,79],"banner":[73,1232,36,76],"crystals1":[111,1232,74,73],"cactus1":[187,1232,43,68],"cactus2":[232,1232,34,65],"fence":[268,1232,43,65],"treeRound_small":[313,1232,28,64],"carGreen":[343,1232,56,63],"logPile":[401,1232,71,63],"scifi_element1":[474,1232,33,63],"carRed":[509,1232,57,62],"dumpster2":[568,1232,50,61],"well":[620,1232,47,61],"hay":[669,1232,65,60],"pallet_full":[736,1232,53,60],"rockGrey_small2":[791,1232,61,59],"carBlue":[854,1232,56,58],"cargo":[912,1232,56,58],"treePine_small":[970,1232,38,58],"tank":[1010,1232,69,57],"treeAlien_small":[1081,1232,41,57],"dumpster1":[1124,1232,57,55],"horseTrough":[1183,1232,79,55],"rockGrey_small1":[1264,1232,63,52],"tinyBuilding":[1329,1232,47,51],"fire":[2,1313,36,47],"pallet":[40,1313,53,47],"anvil":[95,1313,41,45],"box1":[138,1313,35,45],"rockGrey_small4":[175,1313,50,45],"log":[227,1313,55,42],"ruins_brick1":[284,1313,42,40],"rockBrown_small":[328,1313,41,37],"rockGrey_small3":[371,1313,41,37]};
@@ -996,7 +1036,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return; WSP=wonderSpot(s);
 const $ = id => document.getElementById(id);
 const KEY = 'vuursteen-vorst-v2';
 const STILL = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-const TITLES = {q:'Opdrachten en wonderen', w:'Wereldkaart', b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
+const TITLES = {q:'Opdrachten en je rijk', w:'Wereldkaart', b:'Bouwen', d:'Verdediging', u:'Verbeteren', s:'Winkel', a:(window.claude&&window.claude.use)?'Alfa':'Spelers'};
 let MOVE=false, MOVESEL=null, WPOS=[], VIEW_S=null, VIEW_NAME='', REPLAY=null, ATTACK=null, prConfirm=0;
 let S, tab = 'b', open = false, dirty = false, localLast = 0, readyState = null, MAPT = {z:1,ox:0,oy:0}, CAM = null, AFTER = null, FX = [], warned = 0, thState = '';
 
@@ -1228,7 +1268,7 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'study': ok=study(S,TECHBY[arg],now); if(ok) toast('Onderzoek gestart: '+TECHBY[arg].name); break;
     case 'rush': ok=rush(S,now); if(ok){ const t=researchTick(S,now); if(t) toast('Onderzoek klaar: '+t.name+'. '+t.desc+'.',5000); } break;
     case 'prestige': { const b=$('prBtn'); if(now-prConfirm>6000){ prConfirm=now; if(b) b.textContent='Tik nogmaals: begin opnieuw'; return; }
-      prConfirm=0; const g=prestige(S,now); ok=!!g; if(ok){ WORKERS.length=0; CAM=null; AFTER=null; save(); toast('Je nieuwe rijk is gesticht! Je hebt nu '+S.pr+' '+(S.pr>1?'kronen':'kroon')+': '+Math.round((prMult(S)-1)*100)+'% meer productie.',7000); } } break;
+      prConfirm=0; const prev={name:S.heir?S.heir.name:'De stichter', era:S.era, pr:S.pr||0, t:now}; const g=prestige(S,now); ok=!!g; if(ok){ S.dyn=(S.dyn||[]).concat([prev]); S.heir=null; setTimeout(showHeirs,1500); WORKERS.length=0; CAM=null; AFTER=null; save(); toast('Je nieuwe rijk is gesticht! Je hebt nu '+S.pr+' '+(S.pr>1?'kronen':'kroon')+': '+Math.round((prMult(S)-1)*100)+'% meer productie.',7000); } } break;
     case 'attack': if(typeof attackPlayer==='function') attackPlayer(arg); return;
     case 'feast': ok=feast(S,now); if(ok) toast('Feestmaal: 5 minuten 50% meer productie'); break;
     case 'wall': ok=buyWall(S); if(ok) toast(WALL[S.wall].name+' gebouwd rond je dorp. Je hebt nu plek voor '+towerCap(S)+' torens.'); break;
@@ -1249,6 +1289,10 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'route': setRoute(arg); return;
     case 'spClaim': spClaim(arg); return;
     case 'photo': villagePhoto(); return;
+    case 'heir': pickHeir(arg); return;
+    case 'foundOk': $('found').hidden=true; return;
+    case 'siegeJoin': rpc('siege_join',{p_token:token(),p_siege:+arg}).then(() => { toast('Je leger sluit zich aan bij de belegering.'); loadSiege(); }).catch(e => toast(e.message,5000)); return;
+    case 'siegeStart': rpc('siege_start',{p_token:token(),p_target:arg}).then(() => { toast('Belegering gestart! Je alliantie heeft 30 minuten om mee te doen.',6000); loadSiege(); if(typeof loadClan==='function') loadClan(); }).catch(e => toast(e.message,5000)); return;
     case 'daily': claimDaily(); return;
     case 'evpick': pickEvent(arg); return;
     case 'wonder': { const w=WONDERBY[arg]; ok=buildWonder(S,w); if(ok){ onWonder(w); if(typeof tcount==='function') tcount('build',1); } } break;
@@ -1437,7 +1481,7 @@ function questHtml(){ ensureQuests(Date.now()); const st=S.streak||{n:0}, left=D
   const all=S.dq.q.every(x => x.done), g=5+Math.min(7,(st.last===dayKey(Date.now()-DAYMS)?st.n+1:1))*3;
   h+=`<div class="row"><h3>Dagkist<i class="num">reeks ${st.n||0} ${st.n===1?'dag':'dagen'}</i></h3><p>Haal alle drie de opdrachten voor de dagkist. Elke dag op rij wordt hij groter, tot 26 edelstenen op dag 7.</p>
     <div class="act">${S.dq.claimed?'<span class="pill ok">Vandaag al geopend</span>':`<button class="buy" data-act="daily" data-arg="" ${all?'':'disabled'}>Open de dagkist · +${g}</button>`}</div></div>`;
-  h+=passHtml()+wonderHtml()+chronHtml(); return h; }
+  h+=passHtml()+wonderHtml()+(typeof dynHtml==='function'?dynHtml()+secretsHtml()+museumHtml():'')+chronHtml(); return h; }
 
 // world wonders
 let WFIRST={};
@@ -1541,9 +1585,85 @@ EVENTS.push({id:'sint', era:0, when:'sint', t:'Sinterklaas komt langs!', d:'De S
 EVENTS.push({id:'kerst', era:0, when:'kerst', t:'Kerstmarkt', d:'Het dorp viert kerst met lichtjes en warme chocolademelk.', a:'Pakjes uitdelen', b:'Kerstdiner',
   go:(s,n) => { s.gems+=3; return 'Onder de boom: 3 edelstenen!'; }, no:(s,n) => { addFx(s,n,'food',2,30); return '30 minuten dubbel voedsel.'; }});
 
+// ---- extras 2: dynasty, secret discoveries, artifacts and museum; online: world news, alliance sieges, weekly rival
+const online = () => typeof rpc==='function' && typeof token==='function' && typeof STATUS!=='undefined' && STATUS==='approved';
+function newsPost(kind,ref){ if(online()) rpc('news_post',{p_token:token(),p_kind:kind,p_ref:ref||''}).catch(()=>{}); }
+
+// dynasty
+function heirName(){ return HEIR_NAMES[Math.floor(Math.random()*HEIR_NAMES.length)]; }
+function showHeirs(){ const opts=[], pool=TRAITS.slice(); for(let i=0;i<3;i++){ const t=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; opts.push({name:heirName(),trait:t.id}); }
+  HEIRS=opts; let el=$('event'); if(!el){ el=mk('div','report'); el.id='event'; el.setAttribute('role','dialog'); document.body.append(el); }
+  el.innerHTML=`<div class="card"><h2>Kies je erfgenaam</h2><p>Je nieuwe rijk krijgt een nieuwe heerser. Elke erfgenaam heeft een eigen talent dat de hele regeerperiode geldt.</p><div class="evbtns">${opts.map((o,i) => `<button class="buy wide" data-act="heir" data-arg="${i}">${o.name} ${TRAITBY[o.trait].name}<br><small>${TRAITBY[o.trait].txt}</small></button>`).join('')}</div></div>`; el.hidden=false; }
+let HEIRS=null;
+function pickHeir(i){ const o=HEIRS&&HEIRS[+i]; if(!o) return; const nr=(S.dyn||[]).length+1; S.heir={name:o.name+' '+TRAITBY[o.trait].name, trait:o.trait, nr, t:Date.now()};
+  $('event').hidden=true; dirty=true; chron(`${S.heir.name} werd de nieuwe heerser.`); newsPost('heir',S.heir.name); toast(`${S.heir.name} regeert nu: ${TRAITBY[o.trait].txt}.`,6000); HEIRS=null; render(); }
+function dynHtml(){ const L=S.dyn||[]; let h=`<h3 class="sub">Je dynastie</h3><div class="row"><h3>${S.heir?esc2(S.heir.name):'De stichter'}<i class="num">heerser nr. ${(S.heir&&S.heir.nr)||1}</i></h3><p>${S.heir?TRAITBY[S.heir.trait].txt:'Na je eerste kroon kies je een erfgenaam met een eigen talent.'}</p>`;
+  if(L.length) h+=`<p class="hint">Stamboom: ${L.map(x => `${esc2(x.name)} (tot ${ERAS[x.era]?ERAS[x.era].name:''})`).join(' → ')} → ${S.heir?esc2(S.heir.name):''}</p>`; return h+'</div>'; }
+
+// secrets
+function checkSecrets(){ S.sec=S.sec||{}; for(const x of SECRETS){ if(S.sec[x.id] || !x.ok(S)) continue; S.sec[x.id]=Date.now(); dirty=true;
+    const e=Object.entries(x.eff).map(([k,v]) => `+${Math.round(v*100)}% ${k==='all'?'op alles':k==='def'?'verdediging':RES_NAME[k].toLowerCase()}`).join(', ');
+    showFound('Geheim ontdekt!', `${x.name}: ${e}. Er zijn nog ${SECRETS.filter(s => !S.sec[s.id]).length} geheimen te vinden.`); chron(`Het dorp ontdekte ${x.name}.`); newsPost('secret',x.name); } }
+function secretsHtml(){ const n=SECRETS.filter(x => S.sec&&S.sec[x.id]).length; return `<h3 class="sub">Geheimen<i class="hint"> · ${n} van ${SECRETS.length}</i></h3><div class="row secrets">`+SECRETS.map(x => S.sec&&S.sec[x.id] ? `<p><b class="gold">${x.name}</b> · ${Object.entries(x.eff).map(([k,v]) => `+${Math.round(v*100)}% ${k==='all'?'op alles':k==='def'?'verdediging':RES_NAME[k].toLowerCase()}`).join(', ')}</p>` : `<p class="hint">??? · ${x.hint}</p>`).join('')+'</div>'; }
+function showFound(title,text){ let el=$('found'); if(!el){ el=mk('div','report'); el.id='found'; el.setAttribute('role','dialog'); document.body.append(el); }
+  el.innerHTML=`<div class="card found"><h2>${title}</h2><p>${esc2(text)}</p><button class="buy wide" data-act="foundOk" data-arg="">Geweldig!</button></div>`; el.hidden=false; }
+
+// artifacts
+function findArtifact(src){ S.art=S.art||{}; const left=[]; for(const set of ARTSETS) for(const n of set.items) if(!S.art[n]) left.push([set,n]); if(!left.length) return;
+  const [set,n]=left[Math.floor(Math.random()*left.length)]; S.art[n]=Date.now(); dirty=true; const done=set.items.every(x => S.art[x]);
+  showFound('Zeldzaam artefact!', `${src} vond ${n}. Het staat nu in je museum.${done?` Je verzameling ${set.name} is compleet!`:` Nog ${set.items.filter(x => !S.art[x]).length} voor de verzameling ${set.name}.`}`);
+  chron(`In het museum: ${n}.`); newsPost('artifact',n); }
+function museumHtml(){ let h=`<h3 class="sub">Museum</h3><p class="hint">Artefacten vind je soms bij gevechten buiten je muren, bij gebeurtenissen, tegen de wereldbaas en heel soms gewoon bij het werk. Een complete verzameling geeft een blijvende bonus.</p>`;
+  for(const set of ARTSETS){ const n=set.items.filter(x => S.art&&S.art[x]).length, done=n===set.items.length, e=Object.entries(set.eff).map(([k,v]) => `+${Math.round(v*100)}% ${k==='all'?'op alles':RES_NAME[k].toLowerCase()}`).join(', ');
+    h+=`<div class="row museum ${done?'done':''}"><h3>${set.name}<i class="num">${n} / ${set.items.length}</i></h3><p>${done?'<b class="gold">Compleet: '+e+'</b>':'Compleet: '+e}</p><div class="arts">${set.items.map(x => `<span class="${S.art&&S.art[x]?'have':''}">${S.art&&S.art[x]?esc2(x):'?'}</span>`).join('')}</div></div>`; }
+  return h; }
+let ART_SNAP=null;
+function artTick(){ const m={tap:S.taps||0, vw:S.vw||0, ev:S.evDone||0}; if(!ART_SNAP){ ART_SNAP=m; return; }
+  if(m.vw>ART_SNAP.vw && Math.random()<.12) findArtifact('Je leger');
+  if(m.ev>ART_SNAP.ev && Math.random()<.06) findArtifact('Een dorpeling');
+  if(m.tap>ART_SNAP.tap && Math.random()<(m.tap-ART_SNAP.tap)/2500) findArtifact('Een werker');
+  if(m.vw>ART_SNAP.vw && online()) newsPost('camp');
+  ART_SNAP=m; }
+
+// world news (online)
+let NEWS_L=[], newsT=0, NEWS_SEEN=0;
+async function loadNews(){ if(!online()) return; newsT=Date.now(); try{ NEWS_L=await rpc('news_feed',{p_token:token()})||[]; }catch(e){ return; } renderNews(); }
+function renderNews(){ const box=$('newsBox'); if(box) box.innerHTML=`<div class="row newsl">${NEWS_L.length?NEWS_L.slice(0,12).map(n => `<p><i class="hint">${ago2(n.at)}</i> ${esc2(n.text)}</p>`).join(''):'<p class="hint">Nog geen nieuws.</p>'}</div>`;
+  const tk=$('newsTicker'); if(tk){ const n=NEWS_L[0]; tk.textContent=n?n.text:''; tk.hidden=!n || !(typeof WORLD_ON!=='undefined' && WORLD_ON); }
+  const top=NEWS_L[0]; if(top && NEWS_SEEN && top.id>NEWS_SEEN && !(typeof VIEW_S!=='undefined'&&VIEW_S)) toast(top.text,5000); if(top) NEWS_SEEN=top.id; }
+function ago2(t){ const m=Math.floor((Date.now()-t)/60000); return m<1?'net':m<60?m+' min':m<1440?Math.floor(m/60)+' u':Math.floor(m/1440)+' d'; }
+
+// alliance sieges (online)
+let SIEGE=null, siegeT=0, SIEGE_WARNED=0;
+async function loadSiege(){ if(!online()) return; siegeT=Date.now(); try{ SIEGE=await rpc('siege_info',{p_token:token()}); if(SIEGE) SIEGE.skew=Date.now()-(+SIEGE.now||Date.now()); }catch(e){ return; } renderSiege(); }
+function renderSiege(){ const box=$('siegeBox'); if(!box || !SIEGE) return; const s=SIEGE.mine, now=Date.now()-(SIEGE.skew||0); let h='';
+  if(SIEGE.against && SIEGE.against.length){ const a=SIEGE.against[0]; h+=`<div class="row warn"><h3>Je dorp wordt belegerd!<i class="num">${fmtLeft(+a.ends-now)}</i></h3><p>Alliantie ${esc2(a.clan)} valt aan. Versterk je muren, torens en leger.</p></div>`;
+    if(SIEGE_WARNED!==+a.ends){ SIEGE_WARNED=+a.ends; toast(`Alliantie ${a.clan} gaat je dorp belegeren!`,7000); } }
+  if(s && (!s.resolved || now-(+s.ends)<6*3600000)){ h+= s.resolved ? `<div class="row ${s.won?'':'warn'}"><h3>Belegering van ${esc2(s.target)}<i class="num">${s.won?'gewonnen':'mislukt'}</i></h3><p>${fmt(+s.power)} aanvalskracht tegen ${fmt(+s.defense)} verdediging.${s.won?' Iedereen die meedeed krijgt 8 edelstenen.':''}</p></div>`
+    : `<div class="row siege"><h3>Belegering van ${esc2(s.target)}<i class="num">nog ${fmtLeft(+s.ends-now)}</i></h3><p>${s.n} ${s.n==1?'lid doet':'leden doen'} mee met samen ${fmt(+s.power)} aanvalskracht. Nodig: meer dan ${fmt(+s.defense)}.</p>
+       <div class="qbar"><b style="width:${Math.min(100,Math.round(+s.power/Math.max(1,+s.defense)*100))}%"></b></div>${s.joined?'<p><b class="gold">Jij doet mee.</b></p>':`<div class="act"><button class="buy" data-act="siegeJoin" data-arg="${s.id}">Doe mee met je leger</button></div>`}</div>`; }
+  box.innerHTML=h; }
+function siegeBtn(o){ if(o.me || !(typeof CLAN!=='undefined' && CLAN && CLAN.clan)) return ''; return `<button class="buy" data-act="siegeStart" data-arg="${o.id}">Belegeren met alliantie</button>`; }
+
+// weekly rival (online)
+let RIVAL=null, rivalT=0;
+async function loadRival(){ if(!online()) return; rivalT=Date.now(); try{ RIVAL=await rpc('rival_info',{p_token:token()}); }catch(e){ return; } renderRival(); }
+function renderRival(){ const box=$('rivalBox'); if(!box || !RIVAL) return; const r=RIVAL; if(!r.rival){ box.innerHTML=''; return; }
+  const a=Math.max(0,+r.me_score), b=Math.max(0,+r.rival_score), tot=Math.max(1,a+b), lead=a>b?'Jij staat voor!':a<b?`${esc2(r.rival)} staat voor.`:'Gelijkspel.';
+  box.innerHTML=`<div class="row rival"><h3>Jij tegen ${esc2(r.rival)}<i class="num">nog ${fmtLeft(+r.ends-Date.now())}</i></h3><p>Wie groeit deze week het meest? Elk nieuw gebouw telt 1 punt, een nieuw tijdperk 100. De winnaar krijgt 20 edelstenen. ${lead}</p>
+    <div class="vs"><span>Jij · ${fmt(a)}</span><div class="vsbar"><b style="width:${Math.round(a/tot*100)}%"></b></div><span>${fmt(b)} · ${esc2(r.rival)}</span></div></div>`; }
+
+// one clock for all of it
+setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefined' && VIEW_S)) return; checkSecrets(); artTick();
+  if(!online()) return; const now=Date.now(), onA=open&&tab==='a';
+  if(now-newsT > (onA||(typeof WORLD_ON!=='undefined'&&WORLD_ON)?20000:60000)) loadNews();
+  if(now-siegeT > (onA?15000:90000)) loadSiege(); if(now-rivalT > (onA?60000:600000)) loadRival(); if(onA) renderSiege(); }, 2000);
+// era news
+(function(){ let e=null; setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefined'&&VIEW_S)) return; if(e!==null && S.era>e) newsPost('era'); e=S.era; }, 3000); })();
+
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22g';
-const NEWS=['Seizoenspas: verdien elke maand XP met opdrachten, wonderen, gebeurtenissen en de wereldbaas. 20 niveaus met edelstenen, en een gouden pas voor dubbele beloningen. Zie Opdrachten.','Fotomodus: met de knop Foto in je dorp maak je een mooie foto van je dorp om te delen.','Sinterklaas is in het land! Tot 5 december loopt de Sint met zijn pieten door je dorp en komt hij soms langs met een cadeautje. In december volgt de kerstmarkt.'];
+const GAME_VERSION='2026-11-22h';
+const NEWS=['Rivaal van de week: je speelt een week tegen iemand van jouw niveau. Wie het meest groeit, wint 20 edelstenen. Zie Spelers.','Wereldnieuws: zie live wat er op de server gebeurt, wie een wonder bouwt, een geheim ontdekt of een belegering wint.','Belegering: start met je alliantie een belegering van een ander dorp. Iedereen heeft 30 minuten om mee te doen.','Dynastie: na een kroon kies je een erfgenaam met een eigen talent. Je stamboom groeit mee.','Geheimen: verborgen combinaties in je dorp geven een blijvende bonus. Wie vindt ze allemaal?','Museum: vind zeldzame artefacten zoals de Heilige Graal en Excalibur. Een volle verzameling geeft een bonus.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1626,7 +1746,7 @@ function renderAlfa(){ const st=$('alfaState'); if(!st) return;
     : netState==='fout' ? 'Geen verbinding met de server. Je spel wordt intussen op dit apparaat bewaard.' : 'Verbinden…';
   $('myCode').textContent = token() || '–';
   $('admin').hidden = !OWNER; loadIdeas(); loadRanks(); renderPush();
-  if(typeof crestHtml==='function' && STATUS==='approved'){ $('crestBox').innerHTML=crestHtml(); crestPreview(); renderTour(); renderInstall(); if(typeof renderClan==='function'){ renderClan(); renderBoss(); renderRoutes(); } if(Date.now()-tourT>20000) loadTour(true); }
+  if(typeof crestHtml==='function' && STATUS==='approved'){ $('crestBox').innerHTML=crestHtml(); crestPreview(); renderTour(); renderInstall(); if(typeof renderClan==='function'){ renderClan(); renderBoss(); renderRoutes(); } if(typeof renderNews==='function'){ renderNews(); renderSiege(); renderRival(); } if(Date.now()-tourT>20000) loadTour(true); }
   loadRef(); }
 async function loadIdeas(){ if(STATUS!=='approved') return; try{ IDEAS=await rpc('ideas_list',{p_token:token()})||[]; }catch(e){ return; } renderIdeas(); }
 function renderIdeas(){ const box=$('ideaList'); if(!box) return; box.textContent='';
@@ -1746,7 +1866,7 @@ function worldHtml(){ const now=Date.now(); if(!WORLD) return '<p class="hint">D
     const secs=travelSecs(d,'player',rev), why = S.era<2 ? 'Aanvallen kan vanaf de IJzertijd.' : !armySize(S) ? 'Train eerst een leger bij Verdedig.' : +o.era<2 ? 'Nog beschermd tot hun IJzertijd.'
       : busy ? 'Je leger is al onderweg.' : (shield && !rev) ? 'Net geplunderd, beschermd tot '+new Date(+o.shield).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+'.' : '';
     h+=`<p>Reistijd ${fmtLeft(secs*1000)} · jouw aanval ${myAtk}${rev?' + 25% wraakbonus':''} tegen hun verdediging ${+o.def||0}. Kans: ${chance(myAtk*(rev?1.25:1),+o.def||0)}.</p>`;
-    h+=`<div class="act">${rev?`<button class="buy" data-act="march" data-arg="player|${o.id}|1" ${why&&!(!busy&&armySize(S))?'disabled':''}>Neem wraak</button>`:''}<button class="buy" data-act="march" data-arg="player|${o.id}|0" ${why?'disabled':''}>Val aan</button><button class="buy" data-act="view" data-arg="${o.id}">Bekijk dorp</button>${typeof giftBtn==='function'?giftBtn(o):''}${typeof routeBtn==='function'?routeBtn(o):''}</div>${why?`<p class="hint">${why}</p>`:''}</div>`;
+    h+=`<div class="act">${rev?`<button class="buy" data-act="march" data-arg="player|${o.id}|1" ${why&&!(!busy&&armySize(S))?'disabled':''}>Neem wraak</button>`:''}<button class="buy" data-act="march" data-arg="player|${o.id}|0" ${why?'disabled':''}>Val aan</button><button class="buy" data-act="view" data-arg="${o.id}">Bekijk dorp</button>${typeof giftBtn==='function'?giftBtn(o):''}${typeof routeBtn==='function'?routeBtn(o):''}${typeof siegeBtn==='function'?siegeBtn(o):''}</div>${why?`<p class="hint">${why}</p>`:''}</div>`;
     return h; }
   if(o.kind==='camp'){ const b=battle(myA,campArmy(o.lv)), why = S.era<2 ? 'Aanvallen kan vanaf de IJzertijd.' : !armySize(S) ? 'Train eerst een leger bij Verdedig.' : busy ? 'Je leger is al onderweg.' : +o.busy>now ? 'Er is hier net gevochten. Kom over '+fmtLeft(+o.busy-now)+' terug.' : '';
     return h+`<div class="row"><h3>Barbarenkamp<i>niveau ${o.lv}</i></h3><p>Barbaren met speren en bogen${o.lv>=3?' en ruiters':''}, achter een palissade. Winst geeft goud, voedsel${o.lv>=5?', een edelsteen':''} en ervaring voor je held.</p>
@@ -2007,7 +2127,7 @@ function renderBoss(){ const box=$('bossBox'); if(!box || !BOSS) return; const b
     <div class="qbar hp"><b style="width:${pc}%"></b></div><p class="hint">${fmt(b.hp)} / ${fmt(b.max)} levenspunten · jouw schade: ${fmt(+b.mine)}</p>
     ${b.done?'':`<div class="act"><button class="buy" data-act="bossHit" data-arg="" ${wait>0?'disabled':''}>${wait>0?'Je leger rust nog '+fmtLeft(wait):'Val aan met je leger'}</button></div>`}
     ${(b.top||[]).length?'<p class="hint">Top: '+b.top.map((x,i)=>`${i+1}. ${esc2(x.name)} (${fmt(+x.dmg)})`).join(', ')+'</p>':''}</div>`; }
-async function bossHit(){ try{ const r=await rpc('boss_hit',{p_token:token()}); toast(r.done?'De wereldbaas is verslagen!':`Je leger deed ${fmt(r.dmg)} schade.`,4000); if(typeof spXp==='function') spXp(15); if(r.done) chron('Het dorp hielp de wereldbaas verslaan.'); loadBoss(); }catch(e){ toast(e.message,5000); } }
+async function bossHit(){ try{ const r=await rpc('boss_hit',{p_token:token()}); toast(r.done?'De wereldbaas is verslagen!':`Je leger deed ${fmt(r.dmg)} schade.`,4000); if(typeof spXp==='function') spXp(15); if(typeof findArtifact==='function' && Math.random()<.08) findArtifact('Tegen de wereldbaas'); if(r.done) chron('Het dorp hielp de wereldbaas verslaan.'); loadBoss(); }catch(e){ toast(e.message,5000); } }
 
 // trade routes
 async function loadRoutes(){ if(STATUS!=='approved') return; routesT=Date.now(); try{ ROUTES=await rpc('my_routes',{p_token:token()})||[]; }catch(e){ return; } ROUTE_N=ROUTES.length; renderRoutes(); }
