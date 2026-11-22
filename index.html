@@ -190,7 +190,7 @@ form .buy{align-self:flex-start}
 #heroForm{margin-top:4px}
 .hint.bad{color:var(--bad)}
 
-.timechip{position:absolute;right:8px;top:8px;background:rgba(24,33,27,.8);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;color:var(--bone)}
+.timechip{position:absolute;right:8px;top:8px;z-index:3;cursor:pointer;background:rgba(24,33,27,.8);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;color:var(--bone)}
 .bubble{position:absolute;width:180px;background:#fffaf0;color:#2b2118;border-radius:10px;padding:7px 10px;font-size:13px;line-height:1.25;z-index:4;box-shadow:0 3px 10px rgba(0,0,0,.35);pointer-events:none}
 .movebtn{position:absolute;left:50%;transform:translateX(-50%);bottom:52px;z-index:3}
 canvas.crest{vertical-align:middle;margin:0 6px 0 2px;display:inline-block}
@@ -284,6 +284,18 @@ b.gold{color:#e3b84c}
 .vs{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-weight:800;font-size:14px}.vsbar{height:10px;border-radius:6px;background:#d9553f;overflow:hidden}.vsbar b{display:block;height:100%;background:#4caf6a}
 .card.found h2{color:#8a5a12}
 
+.x3chips{position:absolute;left:8px;bottom:58px;z-index:3;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:4px;max-width:46%}
+.x3chips button{background:rgba(24,33,27,.88);color:var(--bone);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;border:1px solid rgba(255,255,255,.15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.x3chips button.hot{background:#c4502a;color:#fff;animation:advp 1s ease-in-out infinite}
+.x3chips button.gold{background:var(--gold);color:#1b140c}
+.legend{font-style:italic}
+.kidv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.kidv button{padding:12px 6px;font-size:15px}
+.kidcoins{font-size:22px;font-weight:800;text-align:center}
+.capmsg{width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:inherit;font:inherit}
+.votebar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.12);margin:6px 0}
+.votebar b{background:var(--gold)}
+
 </style>
 </head>
 <body>
@@ -308,6 +320,7 @@ b.gold{color:#e3b84c}
     <button class="questbtn" id="questBtn" data-act="tab" data-arg="q">Opdrachten</button>
     <button class="photobtn" id="photoBtn" data-act="photo" data-arg="" aria-label="Maak een foto van je dorp">Foto</button>
     <div class="fxchip" id="fxChip" hidden></div>
+    <div class="x3chips" id="x3chips"></div>
     <div class="newsticker" id="newsTicker" hidden></div>
     <div class="bubble" id="bubble" hidden></div>
     <button class="buy movebtn" id="moveBtn" data-act="move" data-arg="" hidden>Klaar met verplaatsen</button>
@@ -681,7 +694,7 @@ const PR_ERA = 6;
 function prMult(s){ return 1+.5*(s.pr||0); }
 function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
 function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
-  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt','dyn','sec','art','sp']) keep[k]=s[k];
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt','dyn','sec','art','sp','seed','cap','vil','graves','proph','tt','kid','posts','nm','story']) keep[k]=s[k];
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 
 // ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
@@ -774,10 +787,13 @@ const SECRETS=[
 const ARTSETS=[{id:'old',name:'Oude beschavingen',eff:{stone:.1},items:['Steen van Rosetta','Masker van Toetanchamon','Terracotta-krijger','Schild van Leonidas']},
   {id:'mid',name:'Ridders en koningen',eff:{gold:.1},items:['Heilige Graal','Zwaard Excalibur','Magna Carta','Kroon van Karel de Grote']},
   {id:'new',name:'Uitvindingen',eff:{all:.08},items:['Gloeilamp van Edison','Telefoon van Bell','Enigma-machine','Maansteen van Apollo']}];
+// extra bonuses from extras3 (weather, story, heroes, lucky resource, outposts); only for your own village
+let XB={}, XB_S=null;
 function bonusB(s,k){ let v=0; const add=e => { if(!e) return; if(e[k]) v+=e[k]; if(e.all && k!=='def' && k!=='build') v+=e.all; };
   if(s.heir && TRAITBY[s.heir.trait]) add(TRAITBY[s.heir.trait].eff);
   for(const x of SECRETS) if(s.sec && s.sec[x.id]) add(x.eff);
   for(const set of ARTSETS) if(s.art && set.items.every(n => s.art[n])) add(set.eff);
+  if(s===XB_S) add(XB);
   return k==='build' ? Math.min(.3,v) : v; }
 
 // Sprites: "Hexagon Pack" by Kenney (kenney.nl), Creative Commons Zero (CC0), re-rendered from the pack's vector file.
@@ -1035,6 +1051,7 @@ function drawScene(c,s,t,opt){ opt=opt||{}; if(!IMG) return; WSP=wonderSpot(s);
     if(hd==='sint'){ const a=t*.25, [x,y]=P(MID+.5+Math.cos(a)*1.4, MID+.5+Math.sin(a)*1.4); person(c,x,y,{era:0,body:'#c0262d',legs:'#f1e6cf',cape:'#c0262d',crown:true,sc:1.8,walk:t*7});
       for(let q=0;q<3;q++){ const [px,py]=P(MID+.5+Math.cos(a-.5-q*.35)*1.4, MID+.5+Math.sin(a-.5-q*.35)*1.4); person(c,px,py,{era:0,body:['#2f5fa8','#e3b84c','#2f7a4a'][q],legs:'#2a2622',hat:'hood',sc:1.3,walk:t*9+q}); } }
     if(hd==='kerst'){ const [x,y]=P(MID-.9,MID+.9); stand(c,'treePine_large',x,y,1.9); for(let q=0;q<14;q++){ const k=q/14, on=(Math.sin(t*3+q)>0); dot(c,on?['#ff4d4d','#ffd23f','#4dc3ff','#7dff8a'][q%4]:'rgba(255,255,255,.3)',x+Math.sin(q*2.3)*(6+k*9),y-48+k*40,2.2); } } }
+  if(typeof sceneExtra==='function') sceneExtra(c,s,t,opt);
   const dk=opt.dark||0, sea=opt.season;
   if(sea==='winter'){ c.fillStyle='rgba(235,245,255,.22)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<70;k++){ const fx=(h2(k,3)*1400-700), fy=((h2(k,9)*900+t*28*(0.6+h2(k,1)))%900)-300; dot(c,'rgba(255,255,255,.85)',fx,fy,1.4+h2(k,5)*1.4); } }
   else if(sea==='herfst'){ c.fillStyle='rgba(255,150,40,.07)'; c.fillRect(-4000,-4000,8000,8000); for(let k=0;k<22;k++){ const fx=(h2(k,13)*1200-600)+Math.sin(t+k)*18, fy=((h2(k,7)*800+t*16)%800)-260; poly(c,k%2?'#d9772b':'#c4502a',[fx,fy-2.5, fx+3,fy, fx,fy+2.5, fx-3,fy]); } }
@@ -1253,7 +1270,7 @@ function refresh(){ const now=Date.now(), r=rates(S,now);
   const am=$('allMax'); if(am){ let k=0; for(const d of BUILD) if(d.era<=S.era) k+=maxUp(S,d)?1:0; am.disabled=!k; }
   document.querySelectorAll('button[data-gems]').forEach(b => { b.disabled = S.gems < +b.dataset.gems; });
   const rl=$('raidLeft'); if(rl) rl.textContent = now<S.peaceUntil ? 'Vredesverdrag: nog '+fmtLeft(S.peaceUntil-now)+' geen overvallen.' : S.raidAt ? 'Volgende overval over '+fmtLeft(S.raidAt-now)+'.' : '';
-  const tc=$('timeChip'); if(tc){ tc.textContent=SEASONS[season(now)].name+' · '+dayPart(now); tc.hidden=!!VIEW_S || (typeof WORLD_ON!=='undefined' && WORLD_ON); }
+  const tc=$('timeChip'); if(tc){ tc.textContent=SEASONS[season(now)].name+' · '+dayPart(now)+(typeof weather==='function'&&weather(now)!=='zon'?' · '+WX[weather(now)].name.toLowerCase():''); tc.dataset.act='x3'; tc.dataset.arg='wx'; tc.hidden=!!VIEW_S || (typeof WORLD_ON!=='undefined' && WORLD_ON); }
   const rc=$('rsChip'); if(rc){ rc.hidden=!S.rs || !!VIEW_S || !!REPLAY; if(S.rs){ const t=TECHBY[S.rs.id]; rc.textContent='Onderzoek: '+t.name+' · '+fmtLeft(S.rs.end-now); } }
   document.querySelectorAll('[data-rsleft]').forEach(n => { n.textContent = S.rs ? fmtLeft(S.rs.end-now) : 'nu'; });
   setLeft('feastLeft',S.feastUntil,now,'Nog ',' actief.'); setLeft('partyLeft',S.partyUntil,now,'Nog ',' actief.');
@@ -1303,6 +1320,8 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'spClaim': spClaim(arg); return;
     case 'photo': villagePhoto(); return;
     case 'heir': pickHeir(arg); return;
+    case 'ruin': if(typeof ruinAct==='function') ruinAct(arg); return;
+    case 'x3': if(typeof x3act==='function') x3act(arg); return;
     case 'foundOk': $('found').hidden=true; return;
     case 'siegeJoin': rpc('siege_join',{p_token:token(),p_siege:+arg}).then(() => { toast('Je leger sluit zich aan bij de belegering.'); loadSiege(); }).catch(e => toast(e.message,5000)); return;
     case 'siegeStart': rpc('siege_start',{p_token:token(),p_target:arg}).then(() => { toast('Belegering gestart! Je alliantie heeft 30 minuten om mee te doen.',6000); loadSiege(); if(typeof loadClan==='function') loadClan(); }).catch(e => toast(e.message,5000)); return;
@@ -1494,7 +1513,7 @@ function questHtml(){ ensureQuests(Date.now()); const st=S.streak||{n:0}, left=D
   const all=S.dq.q.every(x => x.done), g=5+Math.min(7,(st.last===dayKey(Date.now()-DAYMS)?st.n+1:1))*3;
   h+=`<div class="row"><h3>Dagkist<i class="num">reeks ${st.n||0} ${st.n===1?'dag':'dagen'}</i></h3><p>Haal alle drie de opdrachten voor de dagkist. Elke dag op rij wordt hij groter, tot 26 edelstenen op dag 7.</p>
     <div class="act">${S.dq.claimed?'<span class="pill ok">Vandaag al geopend</span>':`<button class="buy" data-act="daily" data-arg="" ${all?'':'disabled'}>Open de dagkist · +${g}</button>`}</div></div>`;
-  h+=passHtml()+wonderHtml()+(typeof dynHtml==='function'?dynHtml()+secretsHtml()+museumHtml():'')+chronHtml(); return h; }
+  h+=(typeof rijkHtml==='function'?rijkHtml():'')+passHtml()+wonderHtml()+(typeof dynHtml==='function'?dynHtml()+secretsHtml()+museumHtml():'')+chronHtml(); return h; }
 
 // world wonders
 let WFIRST={};
@@ -1674,9 +1693,210 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
 // era news
 (function(){ let e=null; setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefined'&&VIEW_S)) return; if(e!==null && S.era>e) newsPost('era'); e=S.era; }, 3000); })();
 
+// ---- extras 3: heirloom village, time capsule, named villagers and graves, night merchant, weather, prophecy,
+// time traveller, ghost villages (world.js), little village for kids, monthly story with a server-wide vote
+function hstr(s){ let h=2166136261; s=String(s); for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function srand(seed){ let x=hstr(seed)||1; return () => { x^=x<<13; x>>>=0; x^=x>>>17; x^=x<<5; x>>>=0; return x/4294967296; }; }
+const pickR=(r,a) => a[Math.floor(r()*a.length)];
+function x3box(id){ let el=$(id); if(!el){ el=mk('div','report'); el.id=id; el.setAttribute('role','dialog'); document.body.append(el); } return el; }
+function x3close(id){ const el=$(id); if(el) el.hidden=true; }
+const MAINN=k => RES_NAME[k].toLowerCase();
+function rateOf(k){ const r=rates(S,Date.now()); return Math.max(1,r[k]||0); }
+
+// 1. heirloom: every village has its own seed, name, legend and lucky resource
+const LG={pre:['Eik','Wolf','Raven','Zilver','Ijzer','Dauw','Storm','Goud','Mos','Vuur','Sneeuw','Beren'],suf:['hoven','burg','dal','stede','wijk','rode','horst','veen','berg','mond'],
+  beast:['een witte hert','een oude beer','een gouden adelaar','een zwarte wolf','een slimme vos','een reusachtige uil','een zilveren vis','een wilde ever'],
+  myth:['werd gesticht op de plek waar %b een bron wees','ontstond rond een steen die bij volle maan zingt','werd gebouwd door broers die %b volgden door de sneeuw',
+    'verrees waar een komeet in het moeras viel','begon als schuilplaats van een verdreven koningin, beschermd door %b','werd gesticht nadat %b drie dagen bij het kampvuur bleef'],
+  curse:['Wie de oude eik kapt, krijgt zeven jaar regen.','Op de langste nacht mag niemand fluiten.','Elke honderdste klant op de markt krijgt gratis brood.','De eerste steen van elke muur moet een munt bevatten.','Wie in het dorp trouwt, plant een appelboom.']};
+function ensureSeed(){ if(!S.seed){ S.seed=Math.floor(100000+Math.random()*899999); dirty=true; } }
+function legend(){ const r=srand('v'+S.seed); const name=pickR(r,LG.pre)+pickR(r,LG.suf), beast=pickR(r,LG.beast), myth=pickR(r,LG.myth).replace('%b',beast), curse=pickR(r,LG.curse), lucky=pickR(r,MAIN);
+  return {name,beast,myth,curse,lucky}; }
+function legendHtml(){ ensureSeed(); const L=legend();
+  return `<h3 class="sub">Erfstuk van je dorp<i class="hint"> · nr. ${S.seed}</i></h3><div class="row"><h3>${L.name}<i class="num">uniek</i></h3>
+    <p class="legend">${L.name} ${L.myth}. ${L.curse}</p><p>Geluksgrondstof van dit dorp: <b class="gold">${RES_NAME[L.lucky]} +5%</b>. Geen enkel ander dorp heeft precies deze legende.</p>
+    <div class="act"><button class="buy" data-act="x3" data-arg="shareLegend">Deel je legende</button></div></div>`; }
+function shareLegend(){ const L=legend(), txt=`Mijn dorp ${L.name} (nr. ${S.seed}) ${L.myth}. Wat is de legende van jouw dorp? Speel Van Vuursteen tot Vorst:`, url=location.href.split('#')[0].split('?')[0];
+  if(navigator.share) navigator.share({title:L.name,text:txt,url}).catch(()=>{}); else { try{ navigator.clipboard.writeText(txt+' '+url); toast('Legende gekopieerd, plak hem waar je wilt.'); }catch(e){} } }
+
+// 2. time capsule: bury a tenth of your stock with a message; after 7 days it comes back with interest
+const CAP_DAYS=7;
+function capHtml(){ const c=S.cap, now=Date.now();
+  if(!c) return `<h3 class="sub">Tijdcapsule</h3><div class="row"><p>Begraaf een tiende van je voorraad met een bericht aan jezelf. Na ${CAP_DAYS} dagen graaf je hem op: je krijgt ${'2,5'} keer zoveel terug, 10 edelstenen en misschien een artefact.</p>
+    <input class="capmsg" id="capMsg" maxlength="120" placeholder="Bericht aan je toekomstige zelf"><div class="act"><button class="buy" data-act="x3" data-arg="capBury">Begraaf de capsule</button></div></div>`;
+  const left=c.t+CAP_DAYS*DAYMS-now;
+  return `<h3 class="sub">Tijdcapsule</h3><div class="row"><h3>Begraven op ${new Date(c.t).toLocaleDateString('nl-NL',{day:'numeric',month:'long'})}<i class="num">${left>0?'nog '+fmtLeft(left):'klaar!'}</i></h3>
+    <p>${MAIN.map(k => fmt(c.res[k]||0)+' '+MAINN(k)).join(', ')} ligt onder de grond.</p>${left>0?'<p class="hint">Het bericht blijft geheim tot je hem opgraaft.</p>':`<div class="act"><button class="buy" data-act="x3" data-arg="capOpen">Graaf de capsule op</button></div>`}</div>`; }
+function capBury(){ if(S.cap) return; const m=($('capMsg')&&$('capMsg').value||'').slice(0,120), res={}; let any=false;
+  for(const k of MAIN){ const v=Math.floor((S.res[k]||0)*.1); if(v>0){ res[k]=v; S.res[k]-=v; any=true; } }
+  if(!any){ toast('Je hebt nog niets om te begraven.'); return; } S.cap={t:Date.now(),res,msg:m}; dirty=true; chron('Het dorp begroef een tijdcapsule.'); toast(`De capsule is begraven. Kom over ${CAP_DAYS} dagen terug!`,5000); render(); }
+function capOpen(){ const c=S.cap; if(!c || Date.now()<c.t+CAP_DAYS*DAYMS) return; for(const k in c.res) S.res[k]=(S.res[k]||0)+Math.floor(c.res[k]*2.5); S.gems+=10; S.cap=null; dirty=true;
+  showFound('De tijdcapsule is open!', (c.msg?`Je schreef: "${c.msg}". `:'')+`Je krijgt ${MAIN.filter(k => c.res[k]).map(k => fmt(Math.floor(c.res[k]*2.5))+' '+MAINN(k)).join(', ')} en 10 edelstenen terug.`);
+  if(Math.random()<.35) setTimeout(() => findArtifact('De tijdcapsule'),2500); chron('De tijdcapsule werd opgegraven.'); render(); }
+
+// 3. named villagers who ask for help; helped ones earn a title and a small lasting bonus; they can fall in battle
+const VJOBS=[{job:'smid',r:'gold',title:'de Meestersmid'},{job:'boer',r:'food',title:'de Oogstkoning'},{job:'houthakker',r:'wood',title:'de Bijlzwaaier'},{job:'steenhouwer',r:'stone',title:'de Bouwmeester'},
+  {job:'jager',r:'food',title:'de Woudloper'},{job:'koopman',r:'gold',title:'de Rijke'},{job:'timmerman',r:'wood',title:'de Schrijnwerker'},{job:'metselaar',r:'stone',title:'de Muurmeester'}];
+const VFIRST=['Gijs','Anna','Teun','Roos','Bas','Lotte','Joost','Fenna','Wout','Saar','Hidde','Noor','Pim','Isa','Daan','Lieke','Thijs','Mila','Ruben','Jet'];
+const VASK=['wil een eigen werkplaats beginnen','droomt ervan de beste van het land te worden','wil zijn kinderen het vak leren','zoekt geld voor een nieuwe uitrusting','wil een wedstrijd winnen in de stad','wil een huis bouwen voor zijn moeder'];
+let VQ=null;
+function vilTick(now){ S.vil=S.vil||[]; if(!S.vqAt){ S.vqAt=now+8*60000; return; } if(now<S.vqAt || VQ || S.vil.filter(v => !v.dead).length>=12) return;
+  S.vqAt=now+(25+Math.random()*25)*60000; const j=VJOBS[Math.floor(Math.random()*VJOBS.length)], used=S.vil.map(v => v.name);
+  const name=VFIRST.filter(n => used.indexOf(n)<0)[0]||('Dorpeling '+(S.vil.length+1)), cost=Math.ceil(rateOf(j.r)*180), g=j.job.match(/boer|jager|smid|houthakker|steenhouwer|koopman|timmerman|metselaar/)?'zijn':'haar';
+  VQ={name,job:j.job,r:j.r,title:j.title,cost,ask:VASK[Math.floor(Math.random()*VASK.length)]}; x3chips(); }
+function vilShow(){ if(!VQ) return; const el=x3box('x3dlg'), q=VQ, ok=(S.res[q.r]||0)>=q.cost;
+  el.innerHTML=`<div class="card"><h2>${esc2(q.name)} de ${q.job}</h2><p>${esc2(q.name)} ${q.ask}. Help je met ${fmt(q.cost)} ${MAINN(q.r)}?</p><p class="hint">Krijgt ${esc2(q.name)} hulp, dan wordt het ${esc2(q.name)} ${q.title}: +2% ${MAINN(q.r)} zolang hij of zij leeft.</p>
+    <div class="evbtns"><button class="buy wide" data-act="x3" data-arg="vilYes" ${ok?'':'disabled'}>Help ${esc2(q.name)}</button><button class="buy alt wide" data-act="x3" data-arg="vilNo">Nu niet</button></div></div>`; el.hidden=false; }
+function vilAnswer(yes){ const q=VQ; if(!q) return; x3close('x3dlg');
+  if(yes){ if(!pay(S,{[q.r]:q.cost})){ toast('Niet genoeg '+MAINN(q.r)+'.'); return; } S.vil.push({name:q.name,job:q.job,r:q.r,title:q.title,t:Date.now()}); dirty=true;
+    showFound(`${q.name} ${q.title}`, `${q.name} is je dankbaar en is nu een held van het dorp: +2% ${MAINN(q.r)}.`); chron(`${q.name} de ${q.job} werd ${q.name} ${q.title}.`); newsPost('hero',q.name+' '+q.title); }
+  else toast(`${q.name} gaat teleurgesteld weer aan het werk.`); VQ=null; x3chips(); render(); }
+let LOSS_SEEN=0;
+function lossTick(){ if(typeof AFTER==='undefined' || !AFTER || AFTER.won || AFTER.t0===LOSS_SEEN) return; LOSS_SEEN=AFTER.t0; const alive=(S.vil||[]).filter(v => !v.dead); if(!alive.length || Math.random()>.3) return;
+  const v=alive[Math.floor(Math.random()*alive.length)]; v.dead=Date.now(); S.graves=(S.graves||0)+1; dirty=true;
+  setTimeout(() => showFound('Een held is gevallen', `${v.name} ${v.title} sneuvelde bij het verdedigen van het dorp. Er staat nu een grafsteen bij de muur.`),5200); chron(`${v.name} ${v.title} sneuvelde bij een overval.`); }
+function heroesHtml(){ const L=S.vil||[]; return `<h3 class="sub">Helden van het dorp<i class="hint"> · ${L.filter(v => !v.dead).length} levend</i></h3><div class="row">${L.length?L.map(v => `<p>${v.dead?'<span class="hint">✝ ':'<b class="gold">'}${esc2(v.name)} ${v.title}${v.dead?' · gesneuveld</span>':'</b> · +2% '+MAINN(v.r)}</p>`).join(''):'<p class="hint">Af en toe vraagt een dorpeling je om hulp. Help je, dan wordt het een held met een eigen titel.</p>'}</div>`; }
+
+// 4. night merchant (21:30 to 5:30)
+function nightDeals(){ const r=srand('nm'+dayKey(Date.now()-6*3600000)), a=pickR(r,MAIN.filter(k => k!=='gold')), m=rateOf('gold');
+  return [{id:'gems',txt:`5 edelstenen voor ${fmt(Math.ceil(rateOf(a)*600))} ${MAINN(a)}`,cost:{[a]:Math.ceil(rateOf(a)*600)},go:() => { S.gems+=5; }},
+    {id:'boost',txt:`Nachtdrank: 1 uur +40% op alles, voor ${fmt(Math.ceil(m*300))} goud`,cost:{gold:Math.ceil(m*300)},go:() => addFx(S,Date.now(),'all',1.4,60)},
+    {id:'map',txt:`Schatkaart: kans op een artefact, voor ${fmt(Math.ceil(m*450))} goud`,cost:{gold:Math.ceil(m*450)},go:() => { if(Math.random()<.5) setTimeout(() => findArtifact('De schatkaart'),600); else toast('De schatkaart leidde naar een lege kist… volgende keer beter.',4000); }}]; }
+function nmShow(){ const el=x3box('x3dlg'), nk=dayKey(Date.now()-6*3600000), done=(S.nm&&S.nm.k===nk)?S.nm.d:[];
+  el.innerHTML=`<div class="card"><h2>De nachthandelaar</h2><p>Een gehulde figuur met een lantaarn. "Ik ben er alleen als het donker is. Wat mag het zijn?"</p><div class="evbtns">${nightDeals().map(d => done.indexOf(d.id)>=0?`<button class="buy alt wide" disabled>${d.txt} · verkocht</button>`:`<button class="buy wide" data-act="x3" data-arg="nm:${d.id}" ${can(S,d.cost)?'':'disabled'}>${d.txt}</button>`).join('')}<button class="buy alt wide" data-act="x3" data-arg="close">Weg ermee</button></div></div>`; el.hidden=false; }
+function nmBuy(id){ const nk=dayKey(Date.now()-6*3600000); if(!S.nm || S.nm.k!==nk) S.nm={k:nk,d:[]}; if(S.nm.d.indexOf(id)>=0) return; const d=nightDeals().find(x => x.id===id);
+  if(!d || !pay(S,d.cost)) return; d.go(); S.nm.d.push(id); dirty=true; toast('De handelaar knikt en verdwijnt even in de schaduw.'); nmShow(); render(); }
+
+// 5. weather per 3 hours, the same for everyone
+const WX={zon:{name:'Zonnig',fx:{}},regen:{name:'Regen',fx:{food:.2,gold:-.05},txt:'+20% voedsel, -5% goud'},storm:{name:'Onweer',fx:{gold:-.1,wood:.1},txt:'-10% goud, +10% hout, kans op brand'},mist:{name:'Mist',fx:{def:.1,stone:-.05},txt:'+10% verdediging, -5% steen'}};
+function weather(now){ const d=new Date(now), b=Math.floor(d.getHours()/3), r=srand('wx'+dayKey(now)+'-'+b)(), sea=season(now);
+  return r<(sea==='herfst'?.3:.18) ? 'regen' : r<(sea==='zomer'?.36:.27) ? 'storm' : r<.38 ? 'mist' : 'zon'; }
+function fireTick(now){ const w=weather(now); if(S.fire){ if(now>S.fire.until){ const lost={}; for(const k of ['wood','food']){ lost[k]=Math.floor((S.res[k]||0)*.08); S.res[k]-=lost[k]; } S.fire=null; dirty=true;
+      toast(`De brand is uitgeslagen: ${fmt(lost.wood)} hout en ${fmt(lost.food)} voedsel verloren.`,6000); chron('Een bliksemflits zette het bos in brand.'); x3chips(); } return; }
+  if(w==='storm'){ const blk=dayKey(now)+'-'+Math.floor(new Date(now).getHours()/3); if(S.fireBlk!==blk && Math.random()<1/300){ S.fireBlk=blk; S.fire={hp:25,until:now+180000}; dirty=true; toast('De bliksem slaat in! Het bos staat in brand. Tik snel op Blussen!',6000); x3chips(); } } }
+function fireHit(){ if(!S.fire) return; S.fire.hp--; if(S.fire.hp<=0){ S.fire=null; const g=Math.ceil(rateOf('wood')*240); S.res.wood+=g; S.gems+=2; dirty=true; toast(`Brand geblust! De dorpelingen geven je ${fmt(g)} hout en 2 edelstenen.`,5000); chron('Het dorp bluste samen een bosbrand.'); }
+  x3chips(); }
+
+// 6. weekly prophecy: a cryptic line that pays out when it comes true
+function weekStart(now){ const d=new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.getTime(); }
+function weekKey(now){ return dayKey(weekStart(now)); }
+const PROPH=[{id:'tow',txt:'Wanneer drie nieuwe torens de hemel raken, zal het goud gaan stromen.',m:s => s.towers||0,need:3},
+  {id:'bld',txt:'Als het dorp met dertig daken groeit, opent de aarde haar schatkamer.',m:s => buildings(s),need:30},
+  {id:'tap',txt:'Duizend handen die werken, wekken de slapende reus.',m:s => s.taps||0,need:1000},
+  {id:'camp',txt:'Wie twee keer buiten de muren overwint, zal een oude kist vinden.',m:s => s.vw||0,need:2},
+  {id:'hero',txt:'Een nieuwe held zal opstaan uit het gewone volk.',m:s => (s.vil||[]).length,need:1},
+  {id:'ev',txt:'Vijf vreemdelingen kloppen aan, en wie opendoet wordt beloond.',m:s => s.evDone||0,need:5},
+  {id:'won',txt:'Een steen wordt gelegd voor de eeuwigheid.',m:s => Object.values(s.wd||{}).reduce((a,b) => a+b,0),need:1}];
+function prophTick(now){ const wk=weekKey(now); if(!S.proph || S.proph.wk!==wk){ const p=PROPH[hstr(wk+(S.seed||0))%PROPH.length]; S.proph={wk,id:p.id,base:p.m(S),done:0}; dirty=true; return; }
+  const P2=PROPH.find(p => p.id===S.proph.id); if(!P2 || S.proph.done) return; if(P2.m(S)-S.proph.base>=P2.need){ S.proph.done=now; S.gems+=25; dirty=true;
+    showFound('De profetie is uitgekomen!', `"${P2.txt}" Het rijk krijgt 25 edelstenen en een geschenk uit het verleden.`); setTimeout(() => findArtifact('De profetie'),4000); chron('De profetie van deze week kwam uit.'); newsPost('prophecy'); } }
+function prophHtml(){ const p=S.proph&&PROPH.find(x => x.id===S.proph.id); if(!p) return ''; const end=weekStart(Date.now())+7*DAYMS;
+  return `<h3 class="sub">Profetie van de week<i class="hint"> · nog ${fmtLeft(end-Date.now())}</i></h3><div class="row"><p class="legend">"${p.txt}"</p>${S.proph.done?'<p><b class="gold">Uitgekomen! 25 edelstenen ontvangen.</b></p>':'<p class="hint">Niemand weet precies wat het betekent… Komt de profetie uit, dan krijg je 25 edelstenen en een artefact.</p>'}</div>`; }
+
+// 7. time traveller: leaves an object from a later era that wakes up when you get there
+const TTITEMS=['een zingend doosje','een glazen bol met licht','een vreemd zilveren mes','een kaart met onbekende landen','een tikkend uurwerk','een lichtgevende steen','een boek met bewegende plaatjes','een zwevend munt'];
+let TTVIS=0;
+function ttTick(now){ S.tt=S.tt||[]; for(const x of S.tt) if(!x.on && S.era>=x.era){ x.on=now; S.gems+=10; addFx(S,now,'all',2,30); dirty=true;
+    showFound('Het voorwerp ontwaakt!', `${x.item} uit ${ERAS[x.era].name} begint te gloeien nu je zover bent: 30 minuten dubbele productie en 10 edelstenen.`); chron(`${x.item} van de tijdreiziger ontwaakte.`); return; }
+  if(S.era>=ERAS.length-1) return; if(!S.ttAt){ S.ttAt=now+60*60000; return; } if(now<S.ttAt) return; S.ttAt=now+(150+Math.random()*120)*60000;
+  if(S.tt.filter(x => !x.on).length>=3) return; const era=Math.min(ERAS.length-1,S.era+1+Math.floor(Math.random()*2)), item=TTITEMS[Math.floor(Math.random()*TTITEMS.length)];
+  S.tt.push({item,era,t:now}); dirty=true; TTVIS=now; showFound('Een tijdreiziger!', `Een vreemdeling in rare kleren uit ${ERAS[era].name} verschijnt in een lichtflits. Hij laat ${item} achter en verdwijnt weer. Het voorwerp doet niets… tot je zelf ${ERAS[era].name} bereikt.`); chron(`Een tijdreiziger liet ${item} achter.`); }
+function ttHtml(){ const L=S.tt||[]; if(!L.length) return ''; return `<h3 class="sub">Voorwerpen van de tijdreiziger</h3><div class="row">${L.map(x => `<p>${x.on?'<b class="gold">'+esc2(x.item)+' · ontwaakt</b>':esc2(x.item)+' <span class="hint">· wacht op '+ERAS[x.era].name+'</span>'}</p>`).join('')}</div>`; }
+
+// 9. little village for a child or partner: big buttons, own coins, gifts to the big village
+const KIDB=[{id:'hut',name:'Hutje',cost:10,rate:.2},{id:'farm',name:'Moestuin',cost:40,rate:.8},{id:'mine',name:'Goudmijntje',cost:150,rate:3}];
+function kidTick(dt){ const k=S.kid; if(!k) return; let r=0; for(const b of KIDB) r+=(k.b[b.id]||0)*b.rate*Math.pow(1.15,0); k.coins+=r*dt; }
+function kidCost(b){ return Math.ceil(b.cost*Math.pow(1.3,(S.kid.b[b.id]||0))); }
+function kidShow(){ if(!S.kid){ S.kid={name:'',b:{},coins:0,sent:0}; dirty=true; } const k=S.kid, el=x3box('kidBox');
+  el.innerHTML=`<div class="card"><h2>${k.name?esc2(k.name)+'s dorpje':'Klein dorpje'}</h2>${k.name?'':'<p>Een eigen mini-dorp voor je kind of partner. Hoe heet de burgemeester?</p><input class="capmsg" id="kidName" maxlength="20" placeholder="Naam"><div class="act"><button class="buy" data-act="x3" data-arg="kidName">Opslaan</button></div>'}
+    <p class="kidcoins">${fmt(Math.floor(k.coins))} muntjes</p><div class="act"><button class="buy wide" data-act="x3" data-arg="kidTap">Werken! +1</button></div>
+    <div class="kidv">${KIDB.map(b => `<button class="buy" data-act="x3" data-arg="kidBuy:${b.id}" ${k.coins>=kidCost(b)?'':'disabled'}>${b.name} (${k.b[b.id]||0})<br><small>${fmt(kidCost(b))} muntjes</small></button>`).join('')}</div>
+    <p class="hint">Stuur muntjes als cadeau naar het grote dorp: elke 100 muntjes worden voedsel, hout, steen en goud.</p>
+    <div class="evbtns"><button class="buy wide" data-act="x3" data-arg="kidSend" ${k.coins>=100?'':'disabled'}>Stuur cadeau naar het grote dorp</button><button class="buy alt wide" data-act="x3" data-arg="kidClose">Sluiten</button></div></div>`; el.hidden=false; }
+function kidAct(a,b){ const k=S.kid; if(!k) return; if(a==='kidTap') k.coins+=1; if(a==='kidName'){ k.name=($('kidName').value||'').trim().slice(0,20); }
+  if(a==='kidBuy'){ const d=KIDB.find(x => x.id===b), c=kidCost(d); if(k.coins<c) return; k.coins-=c; k.b[b]=(k.b[b]||0)+1; }
+  if(a==='kidSend'){ const n=Math.floor(k.coins/100); if(!n) return; k.coins-=n*100; k.sent+=n; for(const r of MAIN) S.res[r]+=Math.ceil(rateOf(r)*20*n);
+    toast(`${k.name||'Het dorpje'} stuurt een cadeau: ${MAIN.map(r => fmt(Math.ceil(rateOf(r)*20*n))+' '+MAINN(r)).join(', ')}!`,5000); }
+  dirty=true; kidShow(); }
+setInterval(() => { if(typeof S==='undefined' || !S || !S.kid) return; kidTick(1); const el=$('kidBox'); if(el && !el.hidden){ const c=el.querySelector('.kidcoins'); if(c) c.textContent=fmt(Math.floor(S.kid.coins))+' muntjes';
+  el.querySelectorAll('[data-arg^="kidBuy:"]').forEach(b => { const d=KIDB.find(x => 'kidBuy:'+x.id===b.dataset.arg); b.disabled=S.kid.coins<kidCost(d); }); const s=el.querySelector('[data-arg="kidSend"]'); if(s) s.disabled=S.kid.coins<100; } }, 1000);
+
+// 10. monthly story in four chapters; everybody votes, the majority decides next week's bonus
+const STORIES=[
+  {name:'De Rode Komeet',ch:[
+    {txt:'Een rode komeet verschijnt aan de hemel. De priesters zeggen dat het een teken is. De boeren zijn bang voor hun oogst.',a:['Offer graan aan de goden',{food:.1}],b:['Laat de sterrenkijkers hem bestuderen',{gold:.1}]},
+    {txt:'Een brokstuk van de komeet slaat in bij de bergen. Het gloeit nog steeds. Een smid wil het hebben, een tovenaar ook.',a:['Geef het aan de smid',{stone:.1}],b:['Geef het aan de tovenaar',{all:.04}]},
+    {txt:'Uit het noorden komen vluchtelingen die zeggen dat de komeet hun land verwoestte. Ze vragen om onderdak.',a:['Laat ze binnen',{wood:.1}],b:['Geef ze voedsel voor onderweg',{def:.1}]},
+    {txt:'De komeet verdwijnt. In de nacht erna vallen er sterren als regen. Wat doet het rijk?',a:['Een groot feest voor iedereen',{all:.06}],b:['Een nieuwe sterrenwacht bouwen',{gold:.12}]}]},
+  {name:'Het Zwijgende Woud',ch:[
+    {txt:'De vogels in het grote woud zijn opeens stil. Houthakkers durven er niet meer heen.',a:['Stuur jagers op onderzoek',{food:.1}],b:['Kap het woud aan de rand',{wood:.12}]},
+    {txt:'Diep in het woud vinden de jagers een oude stenen poort, overwoekerd met mos.',a:['Open de poort',{stone:.12}],b:['Bewaak de poort',{def:.12}]},
+    {txt:'Achter de poort ligt een vergeten stad vol beelden. Een van de beelden huilt.',a:['Neem de schatten mee',{gold:.12}],b:['Laat alles zoals het is',{all:.05}]},
+    {txt:'De vogels zingen weer. Het woud lijkt het rijk te bedanken… of te waarschuwen.',a:['Plant duizend nieuwe bomen',{wood:.1}],b:['Bouw een tempel aan de bosrand',{all:.06}]}]},
+  {name:'De Verloren Kroon',ch:[
+    {txt:'Een oude bedelaar beweert dat hij de laatste koning is. Hij zoekt zijn verloren kroon.',a:['Geloof hem en help zoeken',{gold:.1}],b:['Lach hem uit',{food:.08}]},
+    {txt:'Een kaart in zijn mantel wijst naar een meer. Duikers zien iets glinsteren op de bodem.',a:['Leeg het meer met dammen',{stone:.12}],b:['Laat de beste duiker gaan',{food:.1}]},
+    {txt:'De kroon is gevonden! Maar drie edelen eisen hem op en dreigen met oorlog.',a:['Geef de kroon aan de bedelaar',{all:.05}],b:['Houd de kroon voor het rijk',{def:.12}]},
+    {txt:'Het hele land praat over de kroon. Wat wordt het slot van dit verhaal?',a:['Een kroning op het dorpsplein',{all:.06}],b:['De kroon in het museum',{gold:.12}]}]}];
+function storyKey(now){ const d=new Date(now), c=Math.min(3,Math.floor((d.getDate()-1)/7)); return {mk:d.getFullYear()+'-'+(d.getMonth()+1), c, st:STORIES[(d.getFullYear()*12+d.getMonth())%STORIES.length]}; }
+function prevKey(now){ const k=storyKey(now); if(k.c>0) return {key:k.mk+'-'+(k.c-1), ch:k.st.ch[k.c-1]}; const p=storyKey(new Date(new Date(now).getFullYear(),new Date(now).getMonth(),0).getTime()); return {key:p.mk+'-3', ch:p.st.ch[3]}; }
+let STORY_V=null, storyT=0;
+async function loadStory(){ storyT=Date.now(); if(!online()) return; const k=storyKey(Date.now()), p=prevKey(Date.now());
+  try{ STORY_V=await rpc('story_info',{p_token:token(),p_key:k.mk+'-'+k.c,p_prev:p.key}); }catch(e){ return; } if(open && tab==='q') render(); }
+function storyWin(){ const p=prevKey(Date.now()); let a=0,b=0; if(STORY_V && STORY_V.prev){ a=+STORY_V.prev.a||0; b=+STORY_V.prev.b||0; } else if(S.story && S.story[p.key]) (S.story[p.key]==='a'?a=1:b=1);
+  if(!a && !b) return null; return {pick:a>=b?'a':'b', ch:p.ch, a, b}; }
+function storyHtml(){ const now=Date.now(), k=storyKey(now), ch=k.st.ch[k.c], key=k.mk+'-'+k.c, mine=(S.story&&S.story[key])||(STORY_V&&STORY_V.mine)||'', w=storyWin();
+  const va=STORY_V?+STORY_V.a||0:0, vb=STORY_V?+STORY_V.b||0:0, tot=va+vb;
+  const eff=e => Object.entries(e).map(([r,v]) => `+${Math.round(v*100)}% ${r==='all'?'op alles':r==='def'?'verdediging':MAINN(r)}`).join(', ');
+  return `<h3 class="sub">${k.st.name} · hoofdstuk ${k.c+1} van 4</h3><div class="row"><p class="legend">${ch.txt}</p>
+    ${mine?`<p>Jij koos: <b class="gold">${ch[mine][0]}</b>.${online()?' De meerderheid beslist, volgende week zie je de afloop.':''}</p>`+(tot?`<div class="votebar"><b style="width:${Math.round(va/tot*100)}%"></b></div><p class="hint">${ch.a[0]}: ${va} · ${ch.b[0]}: ${vb}</p>`:'')
+      :`<div class="evbtns"><button class="buy wide" data-act="x3" data-arg="vote:a">${ch.a[0]}<br><small>${eff(ch.a[1])} voor iedereen</small></button><button class="buy wide" data-act="x3" data-arg="vote:b">${ch.b[0]}<br><small>${eff(ch.b[1])} voor iedereen</small></button></div>`}
+    ${w?`<p class="hint">Vorige keer koos ${online()?'de meerderheid':'je'}: <b>${w.ch[w.pick][0]}</b>. Deze week: ${eff(w.ch[w.pick][1])}.</p>`:''}</div>`; }
+function vote(x){ const k=storyKey(Date.now()), key=k.mk+'-'+k.c; S.story=S.story||{}; if(S.story[key]) return; S.story[key]=x; dirty=true; for(const q in S.story) if(q.slice(0,4)<String(new Date().getFullYear()-1)) delete S.story[q];
+  if(online()) rpc('story_vote',{p_token:token(),p_key:key,p_choice:x}).then(loadStory).catch(()=>{}); toast('Je stem is uitgebracht.'); render(); }
+
+// bonuses, chips, panel, scene
+function xbCalc(now){ const b={}, add=e => { for(const k in e) b[k]=(b[k]||0)+e[k]; };
+  if(S.seed) add({[legend().lucky]:.05}); for(const v of S.vil||[]) if(!v.dead) add({[v.r]:.02});
+  add(WX[weather(now)].fx); const w=storyWin(); if(w) add(w.ch[w.pick][1]); if(S.posts) add({gold:.02*Math.min(3,S.posts)});
+  XB=b; XB_S=S; }
+function x3chips(){ const box=$('x3chips'); if(!box || typeof S==='undefined' || !S) return; const now=Date.now(), view=(typeof VIEW_S!=='undefined'&&VIEW_S)||(typeof WORLD_ON!=='undefined'&&WORLD_ON); let h='';
+  if(!view){ if(S.fire) h+=`<button class="hot" data-act="x3" data-arg="fire">Blussen! (${S.fire.hp})</button>`;
+    if(VQ) h+=`<button class="gold" data-act="x3" data-arg="vil">${esc2(VQ.name)} vraagt hulp</button>`;
+    if(isNight(now)) h+=`<button data-act="x3" data-arg="nm">Nachthandelaar</button>`;
+    if(S.cap && now>=S.cap.t+CAP_DAYS*DAYMS) h+=`<button class="gold" data-act="x3" data-arg="capGo">Capsule klaar!</button>`;
+  }
+  if(box.innerHTML!==h) box.innerHTML=h; }
+function rijkHtml(){ return storyHtml()+prophHtml()+legendHtml()+heroesHtml()+capHtml()+ttHtml()+`<h3 class="sub">Klein dorpje</h3><div class="row"><p>Een eigen mini-dorp voor je kind of partner, met grote knoppen en cadeaus voor jouw dorp.</p><div class="act"><button class="buy" data-act="x3" data-arg="kid">Open ${S.kid&&S.kid.name?esc2(S.kid.name)+'s dorpje':'het kleine dorpje'}</button></div></div>`; }
+function x3act(arg){ const [a,b]=String(arg).split(':');
+  switch(a){ case 'shareLegend': shareLegend(); return; case 'capBury': capBury(); return; case 'capOpen': capOpen(); return; case 'capGo': tab='q'; open=true; render(); return;
+    case 'vil': vilShow(); return; case 'vilYes': vilAnswer(true); return; case 'vilNo': vilAnswer(false); return;
+    case 'nm': if(b) nmBuy(b); else if(isNight(Date.now())) nmShow(); return; case 'close': x3close('x3dlg'); return;
+    case 'fire': fireHit(); return; case 'wx': { const n=Date.now(), w=WX[weather(n)], se=SEASONS[season(n)]; toast(`${se.name}: ${se.desc.toLowerCase()}. ${w.txt?w.name+': '+w.txt+'.':'Mooi weer.'} Het weer verandert elke 3 uur.`,6000); return; }
+    case 'vote': vote(b); return; case 'kid': kidShow(); return; case 'kidClose': x3close('kidBox'); render(); return;
+    default: if(a.indexOf('kid')===0) kidAct(a,b); } }
+function sceneExtra(c,s,t,opt){ if(typeof VIEW_S!=='undefined' && VIEW_S) return; const now=Date.now(), R=RAD[s.era], w=weather(now);
+  // graves by the wall
+  for(let g=0; g<Math.min(8,s.graves||0); g++){ const [x,y]=P(MID-R-.15+g*.32, MID+R+.55); poly(c,'#7d8589',[x-3,y, x-3,y-7, x-1.5,y-9, x+1.5,y-9, x+3,y-7, x+3,y]); c.fillStyle='#5b6366'; c.fillRect(x-.6,y-8,1.2,5); c.fillRect(x-2,y-6.6,4,1.2); }
+  // night merchant with lantern
+  if(isNight(now)){ const [x,y]=P(MID+1.6,MID+1.9); person(c,x,y,{era:0,body:'#2c2340',legs:'#1c1826',hat:'hood',cape:'#2c2340',sc:1.4});
+    c.save(); c.globalCompositeOperation='lighter'; const g=c.createRadialGradient(x+8,y-14,0,x+8,y-14,26); g.addColorStop(0,'rgba(255,190,80,.7)'); g.addColorStop(1,'rgba(255,190,80,0)'); c.fillStyle=g; c.fillRect(x-20,y-40,56,56); c.restore(); dot(c,'#ffd27a',x+8,y-14,2.4); }
+  // time traveller flash
+  if(TTVIS && now-TTVIS<60000){ const [x,y]=P(MID+.9,MID-1.4), a=1-(now-TTVIS)/60000; person(c,x,y,{era:9,sc:1.4,walk:t*6,alpha:Math.min(1,a*3)}); c.save(); c.globalCompositeOperation='lighter'; dot(c,'rgba(120,200,255,'+(a*.35).toFixed(2)+')',x,y-14,18+Math.sin(t*8)*3); c.restore(); }
+  // fire in the forest
+  if(s.fire){ const [x,y]=P(MID-R-1.3,MID+.3); for(let k=0;k<14;k++){ const ph=((t*1.6+k/14)%1), fx=x+Math.sin(k*2.1)*12, fy=y-ph*34; dot(c,`rgba(${255},${Math.round(200-ph*160)},40,${(1-ph)*.9})`,fx,fy,5*(1-ph)+1.5); } smoke(c,x,y-30,t*2,4); }
+  // weather
+  if(w==='regen' || w==='storm'){ c.strokeStyle='rgba(200,220,255,.45)'; c.lineWidth=1; c.beginPath(); for(let k=0;k<(w==='storm'?140:90);k++){ const fx=h2(k,21)*1600-800, fy=((h2(k,4)*1000+t*420*(0.8+h2(k,2)*.4))%1000)-380; c.moveTo(fx,fy); c.lineTo(fx-3,fy+12); } c.stroke();
+    c.fillStyle='rgba(40,60,90,'+(w==='storm'?.22:.12)+')'; c.fillRect(-4000,-4000,8000,8000);
+    if(w==='storm'){ const fl=(t%7.3); if(fl<.12 || (fl>.2&&fl<.27)){ c.fillStyle='rgba(255,255,255,.45)'; c.fillRect(-4000,-4000,8000,8000); } } }
+  else if(w==='mist'){ for(let k=0;k<9;k++){ const x=(h2(k,8)*1000-500)+Math.sin(t*.1+k)*40, y=h2(k,6)*500-150, g=c.createRadialGradient(x,y,0,x,y,160); g.addColorStop(0,'rgba(235,240,245,.35)'); g.addColorStop(1,'rgba(235,240,245,0)'); c.fillStyle=g; c.fillRect(x-160,y-160,320,320); } } }
+setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefined' && VIEW_S)) return; const now=Date.now();
+  ensureSeed(); xbCalc(now); vilTick(now); lossTick(); fireTick(now); prophTick(now); ttTick(now); x3chips();
+  if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
+
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22j';
-const NEWS=['Nieuwe 3D-dorpelingen en soldaten: per tijdperk een eigen uitrusting, van bontjassen en knotsen tot ruimtepakken met straalgeweren.','Dichte 3D-bossen rond je dorp, en dorpelingen die echte vracht dragen.'];
+const GAME_VERSION='2026-11-22k';
+const NEWS=['Weer en nacht: regen, onweer met bosbranden en mist, en \'s nachts een geheimzinnige handelaar.','Je dorp heeft nu een eigen legende, helden met een naam, een tijdcapsule, een profetie van de week en een tijdreiziger.','Elke maand een verhaal waarin alle spelers samen kiezen hoe het verdergaat, spookdorpen op de wereldkaart en een klein dorpje voor je kind of partner.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1857,6 +2077,7 @@ function titleOf(p){ const t=TITLE_BY_ERA[Math.min(9,+p.era||0)]; return (+p.pr>
 async function loadWorld(){ if(STATUS!=='approved') return; wLoad=Date.now();
   try{ const w=await rpc('world',{p_token:token()}); if(!w) return; const skew=Date.now()-(+w.now||Date.now());
     for(const m of w.marches){ m.dep+=skew; m.arr+=skew; } for(const x of w.sites) x.busy+=skew; for(const p of w.players) if(+p.shield) p.shield+=skew;
+    if(w.myposts!==undefined && S.posts!==+w.myposts){ S.posts=+w.myposts; dirty=true; }
     WORLD=w; if(WSEL) WSEL=findSel(WSEL.type,WSEL.id); if(open && tab==='w') render(); }catch(e){} }
 function findSel(type,id){ if(!WORLD) return null; const o = type==='player' ? WORLD.players.find(p => p.id===id) : WORLD.sites.find(x => String(x.id)===String(id)); return o ? {type,id,o} : null; }
 async function openWorld(focusId){ if(STATUS!=='approved'){ toast('De wereldkaart is er zodra je bent toegelaten.'); return; }
@@ -1873,6 +2094,7 @@ function worldHtml(){ const now=Date.now(); if(!WORLD) return '<p class="hint">D
   if(!WSEL) return h+`<p class="hint">Sleep over de kaart en tik op een dorp, een barbarenkamp of een ruïne. Hoe verder weg, hoe langer je leger onderweg is.</p>`+marchList();
   const o=WSEL.o, d=distTo(o);
   if(WSEL.type==='player' && typeof giftTo!=='undefined' && giftTo && giftTo.id===o.id) return h+giftHtml()+`<div class="act"><button class="link" data-act="giftTo" data-arg="">Terug</button></div>`;
+  if(WSEL.type==='player' && o.idle) return h+ghostHtml(o,d);
   if(WSEL.type==='player'){ const e=ERAS[+o.era]||ERAS[0], shield=+o.shield>now, rev=!!o.revenge;
     h+=`<div class="row"><h3>${esc(o.name)}<i>${titleOf(o)}${+o.pr?' · '+o.pr+' kronen':''}</i></h3><p>${e.name} · verdediging ${+o.def||0}${+o.hero?' · held niveau '+o.hero:''}</p>`;
     if(o.me) return h+'<p class="hint">Dit is jouw dorp.</p></div>';
@@ -1960,8 +2182,9 @@ function drawWorld(c,w,h,dpr,t){ if(!WCAM) WCAM={x:WN*WT/2,y:WN*WT/2,z:1.6}; con
   for(const p of WORLD.players){ const cx=(p.x+.5)*WT, cy=(p.y+.5)*WT, L=CENTER[Math.min(+p.era||0,CENTER.length-1)];
     if(p.me){ c.strokeStyle='#f0c54e'; c.lineWidth=3; c.beginPath(); c.ellipse(cx,cy+8,WT*1.05,WT*.62,0,0,6.2832); c.stroke(); }
     if(+p.shield>now){ c.strokeStyle='rgba(120,190,255,.9)'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,WT*1.15,0,6.2832); c.stroke(); }
-    worldSpr(c,L[0],cx,cy+14,WT*1.9);
-    label(c,cx,cy+26,(p.me?'Jij · ':'')+p.name, p.me?'#6b4a10':'#1b140c');
+    if(p.idle){ c.save(); c.globalAlpha=.85; worldSpr(c,'wt_ruin',cx,cy+12,WT*1.5); c.restore(); if(p.post) worldSpr(c,'kk_tower_A',cx+10,cy+10,WT*.8); label(c,cx,cy+26,(p.post?'Buitenpost · ':'Spookdorp · ')+p.name,'#4a4a4a'); }
+    else { worldSpr(c,L[0],cx,cy+14,WT*1.9);
+    label(c,cx,cy+26,(p.me?'Jij · ':'')+p.name, p.me?'#6b4a10':'#1b140c'); }
     if(p.crest && typeof drawCrest==='function') drawCrest(c,p.crest,cx+WT*.75,cy-WT*.55,15);
     if(p.revenge) label(c,cx,cy-30,'Wraak!','#b3261e');
     WHITS.push({type:'player',id:p.id,x:cx,y:cy,r:WT*.95}); }
@@ -1985,6 +2208,17 @@ setInterval(() => { if(WORLD_ON && Date.now()-wLoad>15000) loadWorld();
   const bar=$('incBar'); if(!bar) return; const now=Date.now(), inc=INCOMING.filter(x => x.arr>now-2000).sort((a,b)=>a.arr-b.arr);
   bar.hidden=!inc.length; if(inc.length) bar.textContent=`${inc[0].by} valt je aan! Aankomst over ${fmtLeft(Math.max(0,inc[0].arr-now))}. Versterk je verdediging.`;
   document.querySelectorAll('[data-arr]').forEach(n => { n.textContent=fmtLeft(Math.max(0,+n.dataset.arr-now)); }); }, 500);
+
+// ghost villages: players away for 14 days become ruins you can search once a day or turn into an outpost
+function ghostHtml(o,d){ return `<div class="row"><h3>Spookdorp van ${esc(o.name)}<i>${(ERAS[+o.era]||ERAS[0]).name}</i></h3><p>${esc(o.name)} is al twee weken weg. Het dorp staat leeg en verrommelt langzaam. Doorzoek het eens per dag, of bouw er een buitenpost (+2% goud, maximaal 3).</p>
+  ${o.post?`<p><b class="gold">Buitenpost van ${esc(o.post)}</b></p>`:''}<div class="act"><button class="buy" data-act="ruin" data-arg="loot|${o.id}" ${o.looted?'disabled':''}>${o.looted?'Vandaag doorzocht':'Doorzoek de ruïnes'}</button>${o.post?'':`<button class="buy" data-act="ruin" data-arg="post|${o.id}">Bouw buitenpost · ${fmt(Math.ceil(Math.max(1,rates(S,Date.now()).gold)*900))} goud</button>`}</div></div>`; }
+async function ruinAct(arg){ const [kind,id]=arg.split('|'), now=Date.now(), cost=Math.ceil(Math.max(1,rates(S,now).gold)*900);
+  if(kind==='post' && (S.res.gold||0)<cost){ toast('Niet genoeg goud voor een buitenpost.'); return; }
+  try{ const r=await rpc('ruin_act',{p_token:token(),p_target:id,p_kind:kind}); S.posts=+r.posts||0;
+    if(kind==='post'){ S.res.gold-=cost; toast(`Buitenpost gebouwd! Je hebt er nu ${S.posts}: +${S.posts*2}% goud.`,5000); chron('Het rijk bouwde een buitenpost in een spookdorp.'); }
+    else { const g={}, rt=rates(S,now), f=1+(+r.era||0)*.15; for(const k of MAIN){ g[k]=Math.ceil(Math.max(1,rt[k])*300*f); S.res[k]+=g[k]; }
+      toast('In de ruïnes vind je '+MAIN.map(k => fmt(g[k])+' '+RES_NAME[k].toLowerCase()).join(', ')+'.',5000); if(Math.random()<.08 && typeof findArtifact==='function') findArtifact('Een verkenner in de ruïnes'); }
+    dirty=true; loadWorld(); }catch(e){ toast(e.message,5000); } }
 
 // ---- social (online build): weekend tournament, gifts between players, coat of arms and title
 let TOUR=null, tourT=0, tourSent=-1, giftTo=null;
