@@ -298,7 +298,7 @@ b.gold{color:#e3b84c}
 
 /* no double-tap or pinch zoom of the page on iPhone; the village canvas handles pinch itself */
 html,body,#app,button,a,input,.report,.sheet{touch-action:manipulation}
-canvas{touch-action:none}
+canvas{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 *{-webkit-tap-highlight-color:transparent}
 .report .card.binfo{background:var(--ground);color:var(--bone);border-color:var(--gold);padding:10px;max-height:85vh;overflow:auto}
 .report .card.binfo .row{background:var(--panel)}
@@ -1391,15 +1391,23 @@ function animTick(now){ for(const k of ['REPLAY','ATTACK']){ const a = k==='REPL
 let VZ=1, VPX=0, VPY=0, VDRAG=null; const VPTR=new Map();
 const VZMIN=.45, VZMAX=3;
 function vZoom(f){ VZ=Math.max(VZMIN,Math.min(VZMAX,VZ*f)); if(Math.abs(VZ-1)<.04){ VZ=1; VPX=0; VPY=0; } const b=$('vZoomOut'); if(b) b.disabled=VZ<=VZMIN; const i=$('vZoomIn'); if(i) i.disabled=VZ>=VZMAX; }
-function villagePointer(){ const cv=$('map');
+// hold a finger on a building (or hold the mouse) to open its info card; a normal tap still gathers
+let LPT=0, LPDONE=false;
+function buildingAt(cx,cy){ if(!MAPT) return null; const q=$('map').getBoundingClientRect(), wx=(cx-q.left-MAPT.ox)/MAPT.z, wy=(cy-q.top-MAPT.oy)/MAPT.z;
+  if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5) return null;
+  const [ti,tj]=hitTile(wx,wy+TH*.25); const T=ti>=0&&tj>=0&&ti<GN&&tj<GN ? TILES[ti*GN+tj] : null, id=T&&S.map['t'+T.idx]; return id && BY[id] ? id : null; }
+function villagePointer(){ const cv=$('map'); cv.addEventListener('contextmenu', e => e.preventDefault());
   const world=() => typeof WORLD_ON!=='undefined' && WORLD_ON;
   cv.addEventListener('pointerdown', e => { if(world()) return; VPTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    VDRAG={moved:false, x:e.clientX, y:e.clientY, px:VPX, py:VPY, z:VZ, d:null}; if(VPTR.size===2){ const [a,b]=[...VPTR.values()]; VDRAG.d=Math.hypot(a.x-b.x,a.y-b.y); } });
+    VDRAG={moved:false, x:e.clientX, y:e.clientY, px:VPX, py:VPY, z:VZ, d:null}; clearTimeout(LPT); LPDONE=false;
+    if(VPTR.size===1 && !VIEW_S && !MOVE){ const cx=e.clientX, cy=e.clientY; LPT=setTimeout(() => { if(!VDRAG || VDRAG.moved || VPTR.size!==1) return; const id=buildingAt(cx,cy);
+      if(id){ LPDONE=true; try{ navigator.vibrate && navigator.vibrate(15); }catch(x){} binfoShow(id); } }, 450); }
+    if(VPTR.size===2){ const [a,b]=[...VPTR.values()]; VDRAG.d=Math.hypot(a.x-b.x,a.y-b.y); } });
   cv.addEventListener('pointermove', e => { if(world() || !VDRAG || !VPTR.has(e.pointerId)) return; VPTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(VPTR.size>=2 && VDRAG.d){ const [a,b]=[...VPTR.values()], d=Math.hypot(a.x-b.x,a.y-b.y); VZ=Math.max(VZMIN,Math.min(VZMAX,VDRAG.z*d/VDRAG.d)); VDRAG.moved=true; return; }
     const dx=e.clientX-VDRAG.x, dy=e.clientY-VDRAG.y; if(Math.abs(dx)+Math.abs(dy)>8) VDRAG.moved=true;
     if(VDRAG.moved && MAPT){ VPX=VDRAG.px-dx/MAPT.z; VPY=VDRAG.py-dy/MAPT.z; } });
-  const up=e => { VPTR.delete(e.pointerId); if(!VPTR.size && VDRAG){ const m=VDRAG.moved; setTimeout(() => { if(VDRAG && !VPTR.size) VDRAG=null; }, m?60:0); } };
+  const up=e => { clearTimeout(LPT); VPTR.delete(e.pointerId); if(!VPTR.size && VDRAG){ const m=VDRAG.moved; setTimeout(() => { if(VDRAG && !VPTR.size) VDRAG=null; }, m?60:0); } };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('pointerleave', up);
   cv.addEventListener('wheel', e => { if(world()) return; e.preventDefault(); vZoom(e.deltaY<0?1.15:.87); }, {passive:false}); }
 function draw(t,dt){ const cv=$('map'), w=cv.clientWidth, h=cv.clientHeight; if(!w || !h) return; const D=VIEW_S||S, own=!VIEW_S;
@@ -1447,15 +1455,13 @@ function start(){
   render();
   try{ if(!localStorage.getItem('vv-onderhoud') && buildings(S)>0){ localStorage.setItem('vv-onderhoud','1'); toast('Nieuw: je stad kost nu onderhoud. Het overzicht staat bij Verbeter.',7000); } }catch(e){}
   document.addEventListener('click', e => { const b=e.target.closest('[data-act]'); if(b && !b.disabled) act(b.dataset.act, b.dataset.arg||''); });
-  $('map').addEventListener('click', e => { if(typeof WORLD_ON!=='undefined' && WORLD_ON){ if(wDrag&&wDrag.moved) return; const q=$('map').getBoundingClientRect(); worldTap(e.clientX-q.left,e.clientY-q.top); return; } if(VIEW_S || (VDRAG && VDRAG.moved)) return; const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
+  $('map').addEventListener('click', e => { if(typeof WORLD_ON!=='undefined' && WORLD_ON){ if(wDrag&&wDrag.moved) return; const q=$('map').getBoundingClientRect(); worldTap(e.clientX-q.left,e.clientY-q.top); return; } if(LPDONE){ LPDONE=false; return; } if(VIEW_S || (VDRAG && VDRAG.moved)) return; const q=$('map').getBoundingClientRect(), sx=e.clientX-q.left, sy=e.clientY-q.top, wx=(sx-MAPT.ox)/MAPT.z, wy=(sy-MAPT.oy)/MAPT.z;
     if(MOVE){ const [ti,tj]=hitTile(wx,wy+TH*.25); const T=ti>=0&&tj>=0&&ti<GN&&tj<GN ? TILES[ti*GN+tj] : null, key=T?'t'+T.idx:null;
       if(!key || !SLOTKEY[key] || T.ring>RAD[S.era]){ toast('Kies een plek binnen je dorp.'); return; }
       if(!MOVESEL){ if(!S.map[key] && !S.deco[key]){ toast('Tik eerst op een gebouw of versiering.'); return; } MOVESEL=key; toast('Tik nu op de nieuwe plek.'); return; }
       if(swapTiles(S,MOVESEL,key)){ dirty=true; toast('Verplaatst.'); } MOVESEL=null; return; }
     const near=WPOS.find(p => Math.hypot(p.x-sx,p.y+10-sy)<16); if(near){ villagerSays(near.w,near.x,near.y); return; }
     if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5){ centerTap(); return; }
-    { const [ti,tj]=hitTile(wx,wy+TH*.25); const T=ti>=0&&tj>=0&&ti<GN&&tj<GN ? TILES[ti*GN+tj] : null, id=T&&S.map['t'+T.idx];
-      if(id && BY[id]){ binfoShow(id); return; } }
     gather(sx,sy); });
   $('tapBtn').addEventListener('click', () => { if(VIEW_S) return; const q=$('field').getBoundingClientRect(); gather(q.width/2, q.height-40); });
   if(typeof worldPointer==='function') worldPointer();
@@ -1928,8 +1934,8 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-23c';
-const NEWS=['Tik op een gebouw in je dorp voor info: wat het oplevert, en meteen bouwen of upgraden.','Snel tikken op iPhone zoomt niet meer in, en je kunt je dorp verder uitzoomen.'];
+const GAME_VERSION='2026-11-23d';
+const NEWS=['Houd je vinger even op een gebouw voor info, bouwen en upgraden. Gewoon tikken verzamelt weer grondstoffen.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
