@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Van Vuursteen tot Vorst</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#3a2816">
@@ -295,6 +295,11 @@ b.gold{color:#e3b84c}
 .capmsg{width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:inherit;font:inherit}
 .votebar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.12);margin:6px 0}
 .votebar b{background:var(--gold)}
+
+/* no double-tap or pinch zoom of the page on iPhone; the village canvas handles pinch itself */
+html,body,#app,button,a,input,.report,.sheet{touch-action:manipulation}
+canvas{touch-action:none}
+*{-webkit-tap-highlight-color:transparent}
 
 </style>
 </head>
@@ -1476,6 +1481,11 @@ function start(){
   fit(); window.addEventListener('resize',fit); window.addEventListener('orientationchange',() => setTimeout(fit,300)); if(window.visualViewport) window.visualViewport.addEventListener('resize',fit);
   document.addEventListener('visibilitychange',() => setTimeout(fit,200)); setInterval(fit,1500); })();
 
+// iOS Safari ignores user-scalable=no: block its page gestures and double-tap zoom ourselves
+(function(){ const no=e => e.preventDefault(); ['gesturestart','gesturechange','gestureend'].forEach(n => document.addEventListener(n,no,{passive:false}));
+  document.addEventListener('dblclick',no,{passive:false}); let lastT=0;
+  document.addEventListener('touchend',e => { const n=Date.now(); if(n-lastT<350 && e.target.tagName!=='CANVAS' && !(e.target.closest && e.target.closest('input,textarea,select'))){ e.preventDefault(); const t=e.target.closest && e.target.closest('[data-act],button'); if(t && !t.disabled) t.click(); } lastT=n; },{passive:false}); })();
+
 // ---- extras: daily missions with a streak, events with choices, famous visitors, world wonders panel, village chronicle
 const DAYMS=86400000;
 function dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
@@ -1903,8 +1913,8 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-23a';
-const NEWS=['Je kunt je dorp nu veel verder uitzoomen en overal heen schuiven, met de knoppen of met twee vingers.'];
+const GAME_VERSION='2026-11-23b';
+const NEWS=['Snel tikken op iPhone zoomt het scherm niet meer in: elke tik telt nu gewoon mee.','Je kunt je dorp veel verder uitzoomen en overal heen schuiven.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
