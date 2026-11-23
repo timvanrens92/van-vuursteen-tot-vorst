@@ -300,6 +300,10 @@ b.gold{color:#e3b84c}
 html,body,#app,button,a,input,.report,.sheet{touch-action:manipulation}
 canvas{touch-action:none}
 *{-webkit-tap-highlight-color:transparent}
+.report .card.binfo{background:var(--ground);color:var(--bone);border-color:var(--gold);padding:10px;max-height:85vh;overflow:auto}
+.report .card.binfo .row{background:var(--panel)}
+.report .card.binfo .act{margin-top:8px}
+.report .card.binfo button.alt{color:var(--bone);border-color:rgba(255,255,255,.35);background:transparent}
 
 </style>
 </head>
@@ -1233,7 +1237,7 @@ function listHtml(){ return tab==='q' ? questHtml() : tab==='w' ? (typeof worldH
 function initStatic(){
   $('res').innerHTML = MAIN.map(k => `<div id="r-${k}"><i class="ic ${k}" title="${RES_NAME[k]}"></i><b class="num"></b><small class="num"></small></div>`).join('');
   $('side').innerHTML = SIDE.map(k => `<span id="s-${k}" hidden><i class="ic ${k}"></i>${RES_NAME[k]}<b class="num"></b><small class="num"></small></span>`).join(''); }
-function render(){
+function render(){ if(BINFO && $('binfo') && !$('binfo').hidden) setTimeout(() => { if(BINFO) binfoShow(BINFO); },0);
   $('eraName').textContent = ERAS[S.era].name;
   $('eraBtn').style.setProperty('--banner', (FLAGS[S.flag]||FLAGS[0]).col);
   $('chips').innerHTML = MAIN.filter(k => RES_ERA[k] <= S.era).map(k => `<button data-act="pick" data-arg="${k}" aria-pressed="${S.sel===k}"><i class="ic ${k}"></i>${RES_NAME[k]}</button>`).join('');
@@ -1326,6 +1330,7 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'photo': villagePhoto(); return;
     case 'heir': pickHeir(arg); return;
     case 'ruin': if(typeof ruinAct==='function') ruinAct(arg); return;
+    case 'binfoClose': binfoClose(); return;
     case 'x3': if(typeof x3act==='function') x3act(arg); return;
     case 'foundOk': $('found').hidden=true; return;
     case 'siegeJoin': rpc('siege_join',{p_token:token(),p_siege:+arg}).then(() => { toast('Je leger sluit zich aan bij de belegering.'); loadSiege(); }).catch(e => toast(e.message,5000)); return;
@@ -1448,7 +1453,10 @@ function start(){
       if(!MOVESEL){ if(!S.map[key] && !S.deco[key]){ toast('Tik eerst op een gebouw of versiering.'); return; } MOVESEL=key; toast('Tik nu op de nieuwe plek.'); return; }
       if(swapTiles(S,MOVESEL,key)){ dirty=true; toast('Verplaatst.'); } MOVESEL=null; return; }
     const near=WPOS.find(p => Math.hypot(p.x-sx,p.y+10-sy)<16); if(near){ villagerSays(near.w,near.x,near.y); return; }
-    if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5) centerTap(); else gather(sx,sy); });
+    if(Math.abs(wx-CPT[0])<TW*.52 && wy>centerTop(S)-8 && wy<CPT[1]+TH*.5){ centerTap(); return; }
+    { const [ti,tj]=hitTile(wx,wy+TH*.25); const T=ti>=0&&tj>=0&&ti<GN&&tj<GN ? TILES[ti*GN+tj] : null, id=T&&S.map['t'+T.idx];
+      if(id && BY[id]){ binfoShow(id); return; } }
+    gather(sx,sy); });
   $('tapBtn').addEventListener('click', () => { if(VIEW_S) return; const q=$('field').getBoundingClientRect(); gather(q.width/2, q.height-40); });
   if(typeof worldPointer==='function') worldPointer();
   villagePointer();
@@ -1485,6 +1493,13 @@ function start(){
 (function(){ const no=e => e.preventDefault(); ['gesturestart','gesturechange','gestureend'].forEach(n => document.addEventListener(n,no,{passive:false}));
   document.addEventListener('dblclick',no,{passive:false}); let lastT=0;
   document.addEventListener('touchend',e => { const n=Date.now(); if(n-lastT<350 && e.target.tagName!=='CANVAS' && !(e.target.closest && e.target.closest('input,textarea,select'))){ e.preventDefault(); const t=e.target.closest && e.target.closest('[data-act],button'); if(t && !t.disabled) t.click(); } lastT=n; },{passive:false}); })();
+
+// tap a building in the village: its card with production, build and upgrade buttons
+let BINFO=null;
+function binfoShow(id){ BINFO=id; let el=$('binfo'); if(!el){ el=mk('div','report'); el.id='binfo'; el.setAttribute('role','dialog'); document.body.append(el);
+    el.addEventListener('click',e => { if(e.target===el) binfoClose(); }); }
+  const d=BY[id]; if(!d){ binfoClose(); return; } el.innerHTML=`<div class="card binfo">${buildingRow(d,false)}<div class="act"><button class="buy alt wide" data-act="binfoClose">Sluiten</button></div></div>`; el.hidden=false; }
+function binfoClose(){ BINFO=null; const el=$('binfo'); if(el) el.hidden=true; }
 
 // ---- extras: daily missions with a streak, events with choices, famous visitors, world wonders panel, village chronicle
 const DAYMS=86400000;
@@ -1913,8 +1928,8 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-23b';
-const NEWS=['Snel tikken op iPhone zoomt het scherm niet meer in: elke tik telt nu gewoon mee.','Je kunt je dorp veel verder uitzoomen en overal heen schuiven.'];
+const GAME_VERSION='2026-11-23c';
+const NEWS=['Tik op een gebouw in je dorp voor info: wat het oplevert, en meteen bouwen of upgraden.','Snel tikken op iPhone zoomt niet meer in, en je kunt je dorp verder uitzoomen.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
