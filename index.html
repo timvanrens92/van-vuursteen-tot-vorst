@@ -327,7 +327,7 @@ b.gold{color:#e3b84c}
     <button class="worldbtn" id="worldBtn" data-act="world" data-arg="">Wereld</button>
     <div class="incbar" id="incBar" hidden></div>
     <div class="replaybar" id="replayBar" hidden></div>
-    <div class="vzoom" id="vZoom"><button data-act="vzoom" data-arg="1.3" aria-label="Inzoomen">+</button><button id="vZoomOut" data-act="vzoom" data-arg="0.77" aria-label="Uitzoomen" disabled>−</button></div>
+    <div class="vzoom" id="vZoom"><button id="vZoomIn" data-act="vzoom" data-arg="1.3" aria-label="Inzoomen">+</button><button id="vZoomOut" data-act="vzoom" data-arg="0.77" aria-label="Uitzoomen">−</button></div>
     <button class="advbtn" id="advBtn" data-act="adv" data-arg="" hidden></button>
     <button class="tapbtn" id="tapBtn"><strong id="tapN"></strong><span id="tapL"></span></button>
     <div id="toast" role="status" hidden></div>
@@ -1379,15 +1379,16 @@ function animTick(now){ for(const k of ['REPLAY','ATTACK']){ const a = k==='REPL
     if(k==='REPLAY') REPLAY=null; else ATTACK=null; if(a.done) a.done(); } }
 // village zoom and pan: pinch, drag, mouse wheel and the + / − buttons
 let VZ=1, VPX=0, VPY=0, VDRAG=null; const VPTR=new Map();
-function vZoom(f){ VZ=Math.max(1,Math.min(3,VZ*f)); if(VZ===1){ VPX=0; VPY=0; } const b=$('vZoomOut'); if(b) b.disabled=VZ<=1; }
+const VZMIN=.45, VZMAX=3;
+function vZoom(f){ VZ=Math.max(VZMIN,Math.min(VZMAX,VZ*f)); if(Math.abs(VZ-1)<.04){ VZ=1; VPX=0; VPY=0; } const b=$('vZoomOut'); if(b) b.disabled=VZ<=VZMIN; const i=$('vZoomIn'); if(i) i.disabled=VZ>=VZMAX; }
 function villagePointer(){ const cv=$('map');
   const world=() => typeof WORLD_ON!=='undefined' && WORLD_ON;
   cv.addEventListener('pointerdown', e => { if(world()) return; VPTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
     VDRAG={moved:false, x:e.clientX, y:e.clientY, px:VPX, py:VPY, z:VZ, d:null}; if(VPTR.size===2){ const [a,b]=[...VPTR.values()]; VDRAG.d=Math.hypot(a.x-b.x,a.y-b.y); } });
   cv.addEventListener('pointermove', e => { if(world() || !VDRAG || !VPTR.has(e.pointerId)) return; VPTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(VPTR.size>=2 && VDRAG.d){ const [a,b]=[...VPTR.values()], d=Math.hypot(a.x-b.x,a.y-b.y); VZ=Math.max(1,Math.min(3,VDRAG.z*d/VDRAG.d)); VDRAG.moved=true; return; }
+    if(VPTR.size>=2 && VDRAG.d){ const [a,b]=[...VPTR.values()], d=Math.hypot(a.x-b.x,a.y-b.y); VZ=Math.max(VZMIN,Math.min(VZMAX,VDRAG.z*d/VDRAG.d)); VDRAG.moved=true; return; }
     const dx=e.clientX-VDRAG.x, dy=e.clientY-VDRAG.y; if(Math.abs(dx)+Math.abs(dy)>8) VDRAG.moved=true;
-    if(VDRAG.moved && VZ>1 && MAPT){ VPX=VDRAG.px-dx/MAPT.z; VPY=VDRAG.py-dy/MAPT.z; } });
+    if(VDRAG.moved && MAPT){ VPX=VDRAG.px-dx/MAPT.z; VPY=VDRAG.py-dy/MAPT.z; } });
   const up=e => { VPTR.delete(e.pointerId); if(!VPTR.size && VDRAG){ const m=VDRAG.moved; setTimeout(() => { if(VDRAG && !VPTR.size) VDRAG=null; }, m?60:0); } };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('pointerleave', up);
   cv.addEventListener('wheel', e => { if(world()) return; e.preventDefault(); vZoom(e.deltaY<0?1.15:.87); }, {passive:false}); }
@@ -1902,8 +1903,8 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-22l';
-const NEWS=['Het spel past zich nu aan de echte schermhoogte van je telefoon aan, ook als app op je beginscherm.','Knoppen en het wereldnieuws op de kaart zitten elkaar niet meer in de weg.'];
+const GAME_VERSION='2026-11-23a';
+const NEWS=['Je kunt je dorp nu veel verder uitzoomen en overal heen schuiven, met de knoppen of met twee vingers.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
