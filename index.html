@@ -1537,7 +1537,7 @@ const QUESTS=[
   {id:'up', era:0, goal:s => 3+Math.floor(s.era/2), txt:n => `Doe ${n} upgrades`},
   {id:'tap', era:0, goal:() => 150, txt:n => `Tik ${n} keer om grondstoffen te verzamelen`},
   {id:'win', era:2, goal:() => 2, txt:n => `Win ${n} gevechten`},
-  {id:'tech', era:1, goal:() => 1, txt:n => `Rond ${n} onderzoek af`},
+  {id:'tech', era:0, goal:() => 1, txt:n => `Rond ${n} onderzoek af`},
   {id:'army', era:2, goal:s => 5+s.era, txt:n => `Train ${n} soldaten`},
   {id:'gold', era:2, goal:s => Math.max(1000,Math.round(rates(s,Date.now()).gold*900)), txt:n => `Verdien ${fmt(n)} goud`, inc:true},
   {id:'ev', era:0, goal:() => 1, txt:n => `Kies wat je doet bij een gebeurtenis`},
@@ -1587,7 +1587,9 @@ function chronHtml(){ const L=S.chron||[]; if(!L.length) return ''; return `<h3 
 // events with a choice, and famous visitors
 const FAMOUS=['De eerste vuurmaker','Hammurabi','Archimedes','Julius Caesar','Karel de Grote','Leonardo da Vinci','Michiel de Ruyter','James Watt','Marie Curie','Neil Armstrong'];
 const EVENTS=[
-  {id:'trader', era:0, t:'Een reizende koopman', d:'Hij biedt goud voor een deel van je hout.', a:'Ruil 15% hout', b:'Nee, dank je',
+  {id:'barter', era:0, maxEra:1, t:'Een rondtrekkende ruilhandelaar', d:'Hij biedt gedroogd vlees en vruchten voor een deel van je hout.', a:'Ruil 15% hout', b:'Nee, dank je',
+    go:s => { const w=s.res.wood*.15, f=Math.max(30,rates(s,Date.now()).food*600+w*.6); s.res.wood-=w; s.res.food+=f; return `Je ruilde hout voor ${fmt(f)} voedsel.`; }},
+  {id:'trader', era:2, t:'Een reizende koopman', d:'Hij biedt goud voor een deel van je hout.', a:'Ruil 15% hout', b:'Nee, dank je',
     go:s => { const w=s.res.wood*.15, g=Math.max(50,rates(s,Date.now()).gold*600+w*.05); s.res.wood-=w; s.res.gold+=g; return `Je ruilde hout voor ${fmt(g)} goud.`; }},
   {id:'harvest', era:0, t:'Een rijke oogst', d:'De velden staan vol. Wat doe je ermee?', a:'Groot feest: 15 min +50% alles', b:'Opslaan in de schuren',
     go:(s,n) => { addFx(s,n,'all',1.5,15); return 'Het hele dorp viert feest. 15 minuten +50% productie.'; },
@@ -1604,7 +1606,7 @@ const EVENTS=[
     go:(s,n) => { addFx(s,n,'all',1.25,20); return '20 minuten +25% productie dankzij het bezoek.'; }}];
 let EVNOW=null;
 function eventTick(now){ if(EVNOW || VIEW_S || REPLAY || ATTACK || REPORT) return; if(!S.evAt){ S.evAt=now+20*60000; return; } if(now<S.evAt) return;
-  const hol=holiday(now), sp=hol && Math.random()<.5 ? EVENTS.filter(e => e.when===hol) : null, pool=sp&&sp.length ? sp : EVENTS.filter(e => e.era<=S.era && (!e.when || e.when===hol)), e=pool[Math.floor(Math.random()*pool.length)]; S.evAt=now+(35+Math.random()*40)*60000; showEvent(e); }
+  const hol=holiday(now), sp=hol && Math.random()<.5 ? EVENTS.filter(e => e.when===hol) : null, pool=sp&&sp.length ? sp : EVENTS.filter(e => e.era<=S.era && (e.maxEra===undefined || S.era<=e.maxEra) && (!e.when || e.when===hol)), e=pool[Math.floor(Math.random()*pool.length)]; S.evAt=now+(35+Math.random()*40)*60000; showEvent(e); }
 function showEvent(e){ EVNOW=e; let el=$('event'); if(!el){ el=mk('div','report'); el.id='event'; el.setAttribute('role','dialog'); document.body.append(el); }
   const d = e.id==='famous' ? `${FAMOUS[Math.min(S.era,FAMOUS.length-1)]} komt langs in je dorp en deelt zijn kennis.` : e.d;
   el.innerHTML=`<div class="card"><h2>${e.id==='famous'?FAMOUS[Math.min(S.era,FAMOUS.length-1)]:e.t}</h2><p>${d}</p><div class="evbtns"><button class="buy wide" data-act="evpick" data-arg="a">${e.a}</button><button class="buy alt wide" data-act="evpick" data-arg="b">${e.b}</button></div></div>`; el.hidden=false; }
@@ -1755,6 +1757,9 @@ const pickR=(r,a) => a[Math.floor(r()*a.length)];
 function x3box(id){ let el=$(id); if(!el){ el=mk('div','report'); el.id=id; el.setAttribute('role','dialog'); document.body.append(el); } return el; }
 function x3close(id){ const el=$(id); if(el) el.hidden=true; }
 const MAINN=k => RES_NAME[k].toLowerCase();
+// only the resources this era already has; and what you pay with at the merchant and for outposts
+const hasR=k => (RES_ERA[k]||0)<=S.era, MAINH=() => MAIN.filter(hasR), payR=() => S.era>=2?'gold':S.era>=1?'stone':'wood';
+function eraFx(e){ const o={}; for(const k in e){ const r=(k==='all'||k==='def'||hasR(k)) ? k : 'food'; if(k==='def' && S.era<2) { o.all=(o.all||0)+e[k]/2; continue; } o[r]=(o[r]||0)+e[k]; } return o; }
 function rateOf(k){ const r=rates(S,Date.now()); return Math.max(1,r[k]||0); }
 
 // 1. heirloom: every village has its own seed, name, legend and lucky resource
@@ -1768,7 +1773,7 @@ function legend(){ const r=srand('v'+S.seed); const name=pickR(r,LG.pre)+pickR(r
   return {name,beast,myth,curse,lucky}; }
 function legendHtml(){ ensureSeed(); const L=legend();
   return `<h3 class="sub">Erfstuk van je dorp<i class="hint"> · nr. ${S.seed}</i></h3><div class="row"><h3>${L.name}<i class="num">uniek</i></h3>
-    <p class="legend">${L.name} ${L.myth}. ${L.curse}</p><p>Geluksgrondstof van dit dorp: <b class="gold">${RES_NAME[L.lucky]} +5%</b>. Geen enkel ander dorp heeft precies deze legende.</p>
+    <p class="legend">${L.name} ${L.myth}. ${L.curse}</p><p>Geluksgrondstof van dit dorp: <b class="gold">${RES_NAME[L.lucky]} +5%</b>${hasR(L.lucky)?'':' (werkt vanaf '+de(ERAS[RES_ERA[L.lucky]])+')'}. Geen enkel ander dorp heeft precies deze legende.</p>
     <div class="act"><button class="buy" data-act="x3" data-arg="shareLegend">Deel je legende</button></div></div>`; }
 function shareLegend(){ const L=legend(), txt=`Mijn dorp ${L.name} (nr. ${S.seed}) ${L.myth}. Wat is de legende van jouw dorp? Speel Van Vuursteen tot Vorst:`, url=location.href.split('#')[0].split('?')[0];
   if(navigator.share) navigator.share({title:L.name,text:txt,url}).catch(()=>{}); else { try{ navigator.clipboard.writeText(txt+' '+url); toast('Legende gekopieerd, plak hem waar je wilt.'); }catch(e){} } }
@@ -1782,7 +1787,7 @@ function capHtml(){ const c=S.cap, now=Date.now();
   return `<h3 class="sub">Tijdcapsule</h3><div class="row"><h3>Begraven op ${new Date(c.t).toLocaleDateString('nl-NL',{day:'numeric',month:'long'})}<i class="num">${left>0?'nog '+fmtLeft(left):'klaar!'}</i></h3>
     <p>${MAIN.map(k => fmt(c.res[k]||0)+' '+MAINN(k)).join(', ')} ligt onder de grond.</p>${left>0?'<p class="hint">Het bericht blijft geheim tot je hem opgraaft.</p>':`<div class="act"><button class="buy" data-act="x3" data-arg="capOpen">Graaf de capsule op</button></div>`}</div>`; }
 function capBury(){ if(S.cap) return; const m=($('capMsg')&&$('capMsg').value||'').slice(0,120), res={}; let any=false;
-  for(const k of MAIN){ const v=Math.floor((S.res[k]||0)*.1); if(v>0){ res[k]=v; S.res[k]-=v; any=true; } }
+  for(const k of MAINH()){ const v=Math.floor((S.res[k]||0)*.1); if(v>0){ res[k]=v; S.res[k]-=v; any=true; } }
   if(!any){ toast('Je hebt nog niets om te begraven.'); return; } S.cap={t:Date.now(),res,msg:m}; dirty=true; chron('Het dorp begroef een tijdcapsule.'); toast(`De capsule is begraven. Kom over ${CAP_DAYS} dagen terug!`,5000); render(); }
 function capOpen(){ const c=S.cap; if(!c || Date.now()<c.t+CAP_DAYS*DAYMS) return; for(const k in c.res) S.res[k]=(S.res[k]||0)+Math.floor(c.res[k]*2.5); S.gems+=10; S.cap=null; dirty=true;
   showFound('De tijdcapsule is open!', (c.msg?`Je schreef: "${c.msg}". `:'')+`Je krijgt ${MAIN.filter(k => c.res[k]).map(k => fmt(Math.floor(c.res[k]*2.5))+' '+MAINN(k)).join(', ')} en 10 edelstenen terug.`);
@@ -1795,7 +1800,7 @@ const VFIRST=['Gijs','Anna','Teun','Roos','Bas','Lotte','Joost','Fenna','Wout','
 const VASK=['wil een eigen werkplaats beginnen','droomt ervan de beste van het land te worden','wil zijn kinderen het vak leren','zoekt geld voor een nieuwe uitrusting','wil een wedstrijd winnen in de stad','wil een huis bouwen voor zijn moeder'];
 let VQ=null;
 function vilTick(now){ S.vil=S.vil||[]; if(!S.vqAt){ S.vqAt=now+8*60000; return; } if(now<S.vqAt || VQ || S.vil.filter(v => !v.dead).length>=12) return;
-  S.vqAt=now+(25+Math.random()*25)*60000; const j=VJOBS[Math.floor(Math.random()*VJOBS.length)], used=S.vil.map(v => v.name);
+  S.vqAt=now+(25+Math.random()*25)*60000; const JS=VJOBS.filter(x => hasR(x.r)), j=JS[Math.floor(Math.random()*JS.length)], used=S.vil.map(v => v.name);
   const name=VFIRST.filter(n => used.indexOf(n)<0)[0]||('Dorpeling '+(S.vil.length+1)), cost=Math.ceil(rateOf(j.r)*180), g=j.job.match(/boer|jager|smid|houthakker|steenhouwer|koopman|timmerman|metselaar/)?'zijn':'haar';
   VQ={name,job:j.job,r:j.r,title:j.title,cost,ask:VASK[Math.floor(Math.random()*VASK.length)]}; x3chips(); }
 function vilShow(){ if(!VQ) return; const el=x3box('x3dlg'), q=VQ, ok=(S.res[q.r]||0)>=q.cost;
@@ -1812,10 +1817,10 @@ function lossTick(){ if(typeof AFTER==='undefined' || !AFTER || AFTER.won || AFT
 function heroesHtml(){ const L=S.vil||[]; return `<h3 class="sub">Helden van het dorp<i class="hint"> · ${L.filter(v => !v.dead).length} levend</i></h3><div class="row">${L.length?L.map(v => `<p>${v.dead?'<span class="hint">✝ ':'<b class="gold">'}${esc2(v.name)} ${v.title}${v.dead?' · gesneuveld</span>':'</b> · +2% '+MAINN(v.r)}</p>`).join(''):'<p class="hint">Af en toe vraagt een dorpeling je om hulp. Help je, dan wordt het een held met een eigen titel.</p>'}</div>`; }
 
 // 4. night merchant (21:30 to 5:30)
-function nightDeals(){ const r=srand('nm'+dayKey(Date.now()-6*3600000)), a=pickR(r,MAIN.filter(k => k!=='gold')), m=rateOf('gold');
+function nightDeals(){ const r=srand('nm'+dayKey(Date.now()-6*3600000)), P=payR(), opts=MAINH().filter(k => k!==P), a=opts.length?pickR(r,opts):'food', m=rateOf(P), PN=MAINN(P);
   return [{id:'gems',txt:`5 edelstenen voor ${fmt(Math.ceil(rateOf(a)*600))} ${MAINN(a)}`,cost:{[a]:Math.ceil(rateOf(a)*600)},go:() => { S.gems+=5; }},
-    {id:'boost',txt:`Nachtdrank: 1 uur +40% op alles, voor ${fmt(Math.ceil(m*300))} goud`,cost:{gold:Math.ceil(m*300)},go:() => addFx(S,Date.now(),'all',1.4,60)},
-    {id:'map',txt:`Schatkaart: kans op een artefact, voor ${fmt(Math.ceil(m*450))} goud`,cost:{gold:Math.ceil(m*450)},go:() => { if(Math.random()<.5) setTimeout(() => findArtifact('De schatkaart'),600); else toast('De schatkaart leidde naar een lege kist… volgende keer beter.',4000); }}]; }
+    {id:'boost',txt:`Nachtdrank: 1 uur +40% op alles, voor ${fmt(Math.ceil(m*300))} ${PN}`,cost:{[P]:Math.ceil(m*300)},go:() => addFx(S,Date.now(),'all',1.4,60)},
+    {id:'map',txt:`Schatkaart: kans op een artefact, voor ${fmt(Math.ceil(m*450))} ${PN}`,cost:{[P]:Math.ceil(m*450)},go:() => { if(Math.random()<.5) setTimeout(() => findArtifact('De schatkaart'),600); else toast('De schatkaart leidde naar een lege kist… volgende keer beter.',4000); }}]; }
 function nmShow(){ const el=x3box('x3dlg'), nk=dayKey(Date.now()-6*3600000), done=(S.nm&&S.nm.k===nk)?S.nm.d:[];
   el.innerHTML=`<div class="card"><h2>De nachthandelaar</h2><p>Een gehulde figuur met een lantaarn. "Ik ben er alleen als het donker is. Wat mag het zijn?"</p><div class="evbtns">${nightDeals().map(d => done.indexOf(d.id)>=0?`<button class="buy alt wide" disabled>${d.txt} · verkocht</button>`:`<button class="buy wide" data-act="x3" data-arg="nm:${d.id}" ${can(S,d.cost)?'':'disabled'}>${d.txt}</button>`).join('')}<button class="buy alt wide" data-act="x3" data-arg="close">Weg ermee</button></div></div>`; el.hidden=false; }
 function nmBuy(id){ const nk=dayKey(Date.now()-6*3600000); if(!S.nm || S.nm.k!==nk) S.nm={k:nk,d:[]}; if(S.nm.d.indexOf(id)>=0) return; const d=nightDeals().find(x => x.id===id);
@@ -1834,14 +1839,14 @@ function fireHit(){ if(!S.fire) return; S.fire.hp--; if(S.fire.hp<=0){ S.fire=nu
 // 6. weekly prophecy: a cryptic line that pays out when it comes true
 function weekStart(now){ const d=new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.getTime(); }
 function weekKey(now){ return dayKey(weekStart(now)); }
-const PROPH=[{id:'tow',txt:'Wanneer drie nieuwe torens de hemel raken, zal het goud gaan stromen.',m:s => s.towers||0,need:3},
+const PROPH=[{id:'tow',era:2,txt:'Wanneer drie nieuwe torens de hemel raken, zal het goud gaan stromen.',m:s => s.towers||0,need:3},
   {id:'bld',txt:'Als het dorp met dertig daken groeit, opent de aarde haar schatkamer.',m:s => buildings(s),need:30},
   {id:'tap',txt:'Duizend handen die werken, wekken de slapende reus.',m:s => s.taps||0,need:1000},
-  {id:'camp',txt:'Wie twee keer buiten de muren overwint, zal een oude kist vinden.',m:s => s.vw||0,need:2},
+  {id:'camp',era:2,txt:'Wie twee keer buiten de muren overwint, zal een oude kist vinden.',m:s => s.vw||0,need:2},
   {id:'hero',txt:'Een nieuwe held zal opstaan uit het gewone volk.',m:s => (s.vil||[]).length,need:1},
   {id:'ev',txt:'Vijf vreemdelingen kloppen aan, en wie opendoet wordt beloond.',m:s => s.evDone||0,need:5},
   {id:'won',txt:'Een steen wordt gelegd voor de eeuwigheid.',m:s => Object.values(s.wd||{}).reduce((a,b) => a+b,0),need:1}];
-function prophTick(now){ const wk=weekKey(now); if(!S.proph || S.proph.wk!==wk){ const p=PROPH[hstr(wk+(S.seed||0))%PROPH.length]; S.proph={wk,id:p.id,base:p.m(S),done:0}; dirty=true; return; }
+function prophTick(now){ const wk=weekKey(now); if(!S.proph || S.proph.wk!==wk){ const PP=PROPH.filter(x => (x.era||0)<=S.era), p=PP[hstr(wk+(S.seed||0))%PP.length]; S.proph={wk,id:p.id,base:p.m(S),done:0}; dirty=true; return; }
   const P2=PROPH.find(p => p.id===S.proph.id); if(!P2 || S.proph.done) return; if(P2.m(S)-S.proph.base>=P2.need){ S.proph.done=now; S.gems+=25; dirty=true;
     showFound('De profetie is uitgekomen!', `"${P2.txt}" Het rijk krijgt 25 edelstenen en een geschenk uit het verleden.`); setTimeout(() => findArtifact('De profetie'),4000); chron('De profetie van deze week kwam uit.'); newsPost('prophecy'); } }
 function prophHtml(){ const p=S.proph&&PROPH.find(x => x.id===S.proph.id); if(!p) return ''; const end=weekStart(Date.now())+7*DAYMS;
@@ -1865,12 +1870,12 @@ function kidShow(){ if(!S.kid){ S.kid={name:'',b:{},coins:0,sent:0}; dirty=true;
   el.innerHTML=`<div class="card"><h2>${k.name?esc2(k.name)+'s dorpje':'Klein dorpje'}</h2>${k.name?'':'<p>Een eigen mini-dorp voor je kind of partner. Hoe heet de burgemeester?</p><input class="capmsg" id="kidName" maxlength="20" placeholder="Naam"><div class="act"><button class="buy" data-act="x3" data-arg="kidName">Opslaan</button></div>'}
     <p class="kidcoins">${fmt(Math.floor(k.coins))} muntjes</p><div class="act"><button class="buy wide" data-act="x3" data-arg="kidTap">Werken! +1</button></div>
     <div class="kidv">${KIDB.map(b => `<button class="buy" data-act="x3" data-arg="kidBuy:${b.id}" ${k.coins>=kidCost(b)?'':'disabled'}>${b.name} (${k.b[b.id]||0})<br><small>${fmt(kidCost(b))} muntjes</small></button>`).join('')}</div>
-    <p class="hint">Stuur muntjes als cadeau naar het grote dorp: elke 100 muntjes worden voedsel, hout, steen en goud.</p>
+    <p class="hint">Stuur muntjes als cadeau naar het grote dorp: elke 100 muntjes worden ${MAINH().map(MAINN).join(', ')}.</p>
     <div class="evbtns"><button class="buy wide" data-act="x3" data-arg="kidSend" ${k.coins>=100?'':'disabled'}>Stuur cadeau naar het grote dorp</button><button class="buy alt wide" data-act="x3" data-arg="kidClose">Sluiten</button></div></div>`; el.hidden=false; }
 function kidAct(a,b){ const k=S.kid; if(!k) return; if(a==='kidTap') k.coins+=1; if(a==='kidName'){ k.name=($('kidName').value||'').trim().slice(0,20); }
   if(a==='kidBuy'){ const d=KIDB.find(x => x.id===b), c=kidCost(d); if(k.coins<c) return; k.coins-=c; k.b[b]=(k.b[b]||0)+1; }
-  if(a==='kidSend'){ const n=Math.floor(k.coins/100); if(!n) return; k.coins-=n*100; k.sent+=n; for(const r of MAIN) S.res[r]+=Math.ceil(rateOf(r)*20*n);
-    toast(`${k.name||'Het dorpje'} stuurt een cadeau: ${MAIN.map(r => fmt(Math.ceil(rateOf(r)*20*n))+' '+MAINN(r)).join(', ')}!`,5000); }
+  if(a==='kidSend'){ const n=Math.floor(k.coins/100); if(!n) return; k.coins-=n*100; k.sent+=n; for(const r of MAINH()) S.res[r]+=Math.ceil(rateOf(r)*20*n);
+    toast(`${k.name||'Het dorpje'} stuurt een cadeau: ${MAINH().map(r => fmt(Math.ceil(rateOf(r)*20*n))+' '+MAINN(r)).join(', ')}!`,5000); }
   dirty=true; kidShow(); }
 setInterval(() => { if(typeof S==='undefined' || !S || !S.kid) return; kidTick(1); const el=$('kidBox'); if(el && !el.hidden){ const c=el.querySelector('.kidcoins'); if(c) c.textContent=fmt(Math.floor(S.kid.coins))+' muntjes';
   el.querySelectorAll('[data-arg^="kidBuy:"]').forEach(b => { const d=KIDB.find(x => 'kidBuy:'+x.id===b.dataset.arg); b.disabled=S.kid.coins<kidCost(d); }); const s=el.querySelector('[data-arg="kidSend"]'); if(s) s.disabled=S.kid.coins<100; } }, 1000);
@@ -1901,7 +1906,7 @@ function storyWin(){ const p=prevKey(Date.now()); let a=0,b=0; if(STORY_V && STO
   if(!a && !b) return null; return {pick:a>=b?'a':'b', ch:p.ch, a, b}; }
 function storyHtml(){ const now=Date.now(), k=storyKey(now), ch=k.st.ch[k.c], key=k.mk+'-'+k.c, mine=(S.story&&S.story[key])||(STORY_V&&STORY_V.mine)||'', w=storyWin();
   const va=STORY_V?+STORY_V.a||0:0, vb=STORY_V?+STORY_V.b||0:0, tot=va+vb;
-  const eff=e => Object.entries(e).map(([r,v]) => `+${Math.round(v*100)}% ${r==='all'?'op alles':r==='def'?'verdediging':MAINN(r)}`).join(', ');
+  const eff=e => Object.entries(eraFx(e)).map(([r,v]) => `+${Math.round(v*100)}% ${r==='all'?'op alles':r==='def'?'verdediging':MAINN(r)}`).join(', ');
   return `<h3 class="sub">${k.st.name} · hoofdstuk ${k.c+1} van 4</h3><div class="row"><p class="legend">${ch.txt}</p>
     ${mine?`<p>Jij koos: <b class="gold">${ch[mine][0]}</b>.${online()?' De meerderheid beslist, volgende week zie je de afloop.':''}</p>`+(tot?`<div class="votebar"><b style="width:${Math.round(va/tot*100)}%"></b></div><p class="hint">${ch.a[0]}: ${va} · ${ch.b[0]}: ${vb}</p>`:'')
       :`<div class="evbtns"><button class="buy wide" data-act="x3" data-arg="vote:a">${ch.a[0]}<br><small>${eff(ch.a[1])} voor iedereen</small></button><button class="buy wide" data-act="x3" data-arg="vote:b">${ch.b[0]}<br><small>${eff(ch.b[1])} voor iedereen</small></button></div>`}
@@ -1911,8 +1916,8 @@ function vote(x){ const k=storyKey(Date.now()), key=k.mk+'-'+k.c; S.story=S.stor
 
 // bonuses, chips, panel, scene
 function xbCalc(now){ const b={}, add=e => { for(const k in e) b[k]=(b[k]||0)+e[k]; };
-  if(S.seed) add({[legend().lucky]:.05}); for(const v of S.vil||[]) if(!v.dead) add({[v.r]:.02});
-  add(WX[weather(now)].fx); const w=storyWin(); if(w) add(w.ch[w.pick][1]); if(S.posts) add({gold:.02*Math.min(3,S.posts)});
+  if(S.seed && hasR(legend().lucky)) add({[legend().lucky]:.05}); for(const v of S.vil||[]) if(!v.dead) add({[v.r]:.02});
+  add(WX[weather(now)].fx); const w=storyWin(); if(w) add(eraFx(w.ch[w.pick][1])); if(S.posts) add(eraFx({gold:.02*Math.min(3,S.posts)}));
   XB=b; XB_S=S; }
 function x3chips(){ const box=$('x3chips'); if(!box || typeof S==='undefined' || !S) return; const now=Date.now(), view=(typeof VIEW_S!=='undefined'&&VIEW_S)||(typeof WORLD_ON!=='undefined'&&WORLD_ON); let h='';
   if(!view){ if(S.fire) h+=`<button class="hot" data-act="x3" data-arg="fire">Blussen! (${S.fire.hp})</button>`;
@@ -1990,8 +1995,8 @@ setInterval(() => { if(typeof S==='undefined' || !S) return;
 window.addEventListener('resize',() => tutPlace());
 
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-28a';
-const NEWS=['Nieuwe spelers krijgen een korte uitleg die stap voor stap de knoppen aanwijst. Ook zin om hem te zien? Tik op de gouden ? rechts op de kaart.'];
+const GAME_VERSION='2026-11-28b';
+const NEWS=['Opdrachten, gebeurtenissen en bonussen passen nu bij je tijdperk: je krijgt geen goud- of verdedigingsdingen meer voordat je die hebt.','Nieuwe spelers krijgen een korte uitleg. Opnieuw bekijken? Tik op de gouden ? rechts op de kaart.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -2306,13 +2311,13 @@ setInterval(() => { if(WORLD_ON && Date.now()-wLoad>15000) loadWorld();
 
 // ghost villages: players away for 14 days become ruins you can search once a day or turn into an outpost
 function ghostHtml(o,d){ return `<div class="row"><h3>Spookdorp van ${esc(o.name)}<i>${(ERAS[+o.era]||ERAS[0]).name}</i></h3><p>${esc(o.name)} is al twee weken weg. Het dorp staat leeg en verrommelt langzaam. Doorzoek het eens per dag, of bouw er een buitenpost (+2% goud, maximaal 3).</p>
-  ${o.post?`<p><b class="gold">Buitenpost van ${esc(o.post)}</b></p>`:''}<div class="act"><button class="buy" data-act="ruin" data-arg="loot|${o.id}" ${o.looted?'disabled':''}>${o.looted?'Vandaag doorzocht':'Doorzoek de ruïnes'}</button>${o.post?'':`<button class="buy" data-act="ruin" data-arg="post|${o.id}">Bouw buitenpost · ${fmt(Math.ceil(Math.max(1,rates(S,Date.now()).gold)*900))} goud</button>`}</div></div>`; }
-async function ruinAct(arg){ const [kind,id]=arg.split('|'), now=Date.now(), cost=Math.ceil(Math.max(1,rates(S,now).gold)*900);
-  if(kind==='post' && (S.res.gold||0)<cost){ toast('Niet genoeg goud voor een buitenpost.'); return; }
+  ${o.post?`<p><b class="gold">Buitenpost van ${esc(o.post)}</b></p>`:''}<div class="act"><button class="buy" data-act="ruin" data-arg="loot|${o.id}" ${o.looted?'disabled':''}>${o.looted?'Vandaag doorzocht':'Doorzoek de ruïnes'}</button>${o.post?'':`<button class="buy" data-act="ruin" data-arg="post|${o.id}">Bouw buitenpost · ${fmt(Math.ceil(Math.max(1,rates(S,Date.now())[payR()])*900))} ${RES_NAME[payR()].toLowerCase()}</button>`}</div></div>`; }
+async function ruinAct(arg){ const [kind,id]=arg.split('|'), now=Date.now(), P=payR(), cost=Math.ceil(Math.max(1,rates(S,now)[P])*900);
+  if(kind==='post' && (S.res[P]||0)<cost){ toast('Niet genoeg '+RES_NAME[P].toLowerCase()+' voor een buitenpost.'); return; }
   try{ const r=await rpc('ruin_act',{p_token:token(),p_target:id,p_kind:kind}); S.posts=+r.posts||0;
-    if(kind==='post'){ S.res.gold-=cost; toast(`Buitenpost gebouwd! Je hebt er nu ${S.posts}: +${S.posts*2}% goud.`,5000); chron('Het rijk bouwde een buitenpost in een spookdorp.'); }
-    else { const g={}, rt=rates(S,now), f=1+(+r.era||0)*.15; for(const k of MAIN){ g[k]=Math.ceil(Math.max(1,rt[k])*300*f); S.res[k]+=g[k]; }
-      toast('In de ruïnes vind je '+MAIN.map(k => fmt(g[k])+' '+RES_NAME[k].toLowerCase()).join(', ')+'.',5000); if(Math.random()<.08 && typeof findArtifact==='function') findArtifact('Een verkenner in de ruïnes'); }
+    if(kind==='post'){ S.res[P]-=cost; toast(`Buitenpost gebouwd! Je hebt er nu ${S.posts}: +${S.posts*2}% goud.`,5000); chron('Het rijk bouwde een buitenpost in een spookdorp.'); }
+    else { const g={}, rt=rates(S,now), f=1+(+r.era||0)*.15; for(const k of MAINH()){ g[k]=Math.ceil(Math.max(1,rt[k])*300*f); S.res[k]+=g[k]; }
+      toast('In de ruïnes vind je '+MAINH().map(k => fmt(g[k])+' '+RES_NAME[k].toLowerCase()).join(', ')+'.',5000); if(Math.random()<.08 && typeof findArtifact==='function') findArtifact('Een verkenner in de ruïnes'); }
     dirty=true; loadWorld(); }catch(e){ toast(e.message,5000); } }
 
 // ---- social (online build): weekend tournament, gifts between players, coat of arms and title
