@@ -305,6 +305,19 @@ canvas{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;use
 .report .card.binfo .act{margin-top:8px}
 .report .card.binfo button.alt{color:var(--bone);border-color:rgba(255,255,255,.35);background:transparent}
 
+.vzoom .tutq{font-size:19px;background:var(--gold);color:#1b140c}
+.tutring{position:fixed;z-index:70;border-radius:12px;box-shadow:0 0 0 3px var(--gold),0 0 0 9999px rgba(10,8,4,.55);pointer-events:none;transition:all .25s ease;animation:tutp 1.2s ease-in-out infinite}
+@keyframes tutp{50%{box-shadow:0 0 0 6px var(--gold),0 0 0 9999px rgba(10,8,4,.55)}}
+.tutbox{position:fixed;z-index:71;left:12px;right:12px;max-width:420px;margin:0 auto;background:#f6eedb;color:#2a1d10;border:3px solid #6b4a22;border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45);transition:top .25s ease}
+.tutbox h3{margin:2px 0 6px;font-size:19px}
+.tutbox p{margin:0 0 6px;font-size:15px;line-height:1.35}
+.tutbox .tutstep{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#7a5a2e;margin:0}
+.tutbox .tutprog{font-weight:800;color:#6b4a10}
+.tutbox .tutprog:empty{display:none}
+.tutbtns{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tutbtns .buy{background:#6b4a22;color:#f6eedb}
+.tutskip{background:none;border:0;color:#7a5a2e;text-decoration:underline;font-size:13px;padding:6px 0}
+
 </style>
 </head>
 <body>
@@ -336,7 +349,7 @@ canvas{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;use
     <button class="worldbtn" id="worldBtn" data-act="world" data-arg="">Wereld</button>
     <div class="incbar" id="incBar" hidden></div>
     <div class="replaybar" id="replayBar" hidden></div>
-    <div class="vzoom" id="vZoom"><button id="vZoomIn" data-act="vzoom" data-arg="1.3" aria-label="Inzoomen">+</button><button id="vZoomOut" data-act="vzoom" data-arg="0.77" aria-label="Uitzoomen">−</button></div>
+    <div class="vzoom" id="vZoom"><button id="vZoomIn" data-act="vzoom" data-arg="1.3" aria-label="Inzoomen">+</button><button id="vZoomOut" data-act="vzoom" data-arg="0.77" aria-label="Uitzoomen">−</button><button id="tutBtn" class="tutq" data-act="tut" data-arg="" aria-label="Uitleg van het spel">?</button></div>
     <button class="advbtn" id="advBtn" data-act="adv" data-arg="" hidden></button>
     <button class="tapbtn" id="tapBtn"><strong id="tapN"></strong><span id="tapL"></span></button>
     <div id="toast" role="status" hidden></div>
@@ -703,7 +716,7 @@ const PR_ERA = 6;
 function prMult(s){ return 1+.5*(s.pr||0); }
 function prGain(s){ return s.era>=PR_ERA ? s.era-PR_ERA+1 : 0; }
 function prestige(s,now){ const g=prGain(s); if(!g) return false; const keep={};
-  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt','dyn','sec','art','sp','seed','cap','vil','graves','proph','tt','kid','posts','nm','story']) keep[k]=s[k];
+  for(const k of ['gems','gp','gc','auto','go','gb','gs','gk','ob','obOff','flag','flags','claimed','resetAt','pr','dq','streak','chron','taps','bal','evAt','dyn','sec','art','sp','seed','cap','vil','graves','proph','tt','kid','posts','nm','story','tut']) keep[k]=s[k];
   const fresh=newState(now); for(const k in fresh) s[k]=fresh[k]; Object.assign(s,keep); s.pr=(keep.pr||0)+g; s.gems+=5*g; return g; }
 
 // ---- the overseer (gem upgrade): builds the cheapest affordable building, keeps a 25% reserve
@@ -1330,6 +1343,9 @@ function act(a,arg){ const now=Date.now(); let ok=true;
     case 'photo': villagePhoto(); return;
     case 'heir': pickHeir(arg); return;
     case 'ruin': if(typeof ruinAct==='function') ruinAct(arg); return;
+    case 'tut': tutStart(); return;
+    case 'tutNext': tutGo(); return;
+    case 'tutSkip': tutStop(true); return;
     case 'binfoClose': binfoClose(); return;
     case 'x3': if(typeof x3act==='function') x3act(arg); return;
     case 'foundOk': $('found').hidden=true; return;
@@ -1551,7 +1567,7 @@ function questHtml(){ ensureQuests(Date.now()); const st=S.streak||{n:0}, left=D
   const all=S.dq.q.every(x => x.done), g=5+Math.min(7,(st.last===dayKey(Date.now()-DAYMS)?st.n+1:1))*3;
   h+=`<div class="row"><h3>Dagkist<i class="num">reeks ${st.n||0} ${st.n===1?'dag':'dagen'}</i></h3><p>Haal alle drie de opdrachten voor de dagkist. Elke dag op rij wordt hij groter, tot 26 edelstenen op dag 7.</p>
     <div class="act">${S.dq.claimed?'<span class="pill ok">Vandaag al geopend</span>':`<button class="buy" data-act="daily" data-arg="" ${all?'':'disabled'}>Open de dagkist · +${g}</button>`}</div></div>`;
-  h+=(typeof rijkHtml==='function'?rijkHtml():'')+passHtml()+wonderHtml()+(typeof dynHtml==='function'?dynHtml()+secretsHtml()+museumHtml():'')+chronHtml(); return h; }
+  h+=`<div class="row"><h3>Hoe werkt het spel?</h3><p class="hint">Bekijk de korte uitleg met alle knoppen nog een keer.</p><div class="act"><button class="buy" data-act="tut" data-arg="">Uitleg bekijken</button></div></div>`+(typeof rijkHtml==='function'?rijkHtml():'')+passHtml()+wonderHtml()+(typeof dynHtml==='function'?dynHtml()+secretsHtml()+museumHtml():'')+chronHtml(); return h; }
 
 // world wonders
 let WFIRST={};
@@ -1933,9 +1949,49 @@ setInterval(() => { if(typeof S==='undefined' || !S || (typeof VIEW_S!=='undefin
   ensureSeed(); xbCalc(now); vilTick(now); lossTick(); fireTick(now); prophTick(now); ttTick(now); x3chips();
   if(now-storyT>(open&&tab==='q'?30000:600000)) loadStory(); }, 1000);
 
+// ---- tutorial: a short guided tour for new players, with a spotlight on the button to press.
+// Starts by itself for a brand-new village, and can be replayed with the ? button on the map or from the Opdrachten tab.
+let TUT=null; // {i, base}
+const firstB=() => BUILD.filter(d => d.era===0).sort((a,b) => Object.values(buildCost(S,a)).reduce((x,y) => x+y,0)-Object.values(buildCost(S,b)).reduce((x,y) => x+y,0))[0];
+const TSTEPS=[
+  {t:'Welkom, stamhoofd!', p:'Je begint met een klein kamp in de Steentijd. Bouw het uit tot een rijk in de Ruimtetijd. In een paar stappen laat ik je zien hoe het werkt.', next:'Laten we beginnen'},
+  {t:'Verzamel grondstoffen', p:() => { const d=firstB(); return `Tik op de knop onderaan, of gewoon op het land rond je dorp. Elke tik levert grondstoffen op. Verzamel genoeg voor een ${d?d.name.toLowerCase():'eerste gebouw'}.`; },
+    el:'#tapBtn', done:() => { const d=firstB(); return !d || can(S,buildCost(S,d)); }, prog:() => { const d=firstB(); if(!d) return ''; const c=buildCost(S,d); return Object.keys(c).map(k => `${fmt(Math.min(S.res[k]||0,c[k]))}/${fmt(c[k])} ${RES_NAME[k].toLowerCase()}`).join(' · '); }},
+  {t:'Kies wat je verzamelt', p:'Met deze knoppen kies je wat een tik oplevert. Kies nu eens Hout.', el:'#chips [data-arg="wood"]', done:() => S.sel==='wood'},
+  {t:'Open het bouwmenu', p:'Tik op Bouw. Hier vind je alle gebouwen die grondstoffen voor je maken, ook als je niet speelt.', el:'#tabs [data-arg="b"]', done:() => open && tab==='b'},
+  {t:'Bouw je eerste gebouw', p:'Tik op Bouw bij een gebouw. Vanaf nu werkt het gebouw elke seconde voor je.', el:'#list [data-act="build"]:not([disabled])', done:t => buildings(S)>t.base, base:() => buildings(S)},
+  {t:'Meer bouwen gaat sneller', p:'Met Bouw max koop je in één keer zoveel als je kunt betalen. Bij 10, 25, 50 en meer gebouwen van één soort krijg je een mijlpaal met extra productie. Met Upgrade verdubbel je de opbrengst.', el:'#list [data-act="bmax"]', next:'Duidelijk'},
+  {t:'Naar het volgende tijdperk', p:'Hier zie je wat je nodig hebt voor het volgende tijdperk. Haal je alle eisen, tik dan hierop of op het grote gebouw in het midden. Elk tijdperk brengt nieuwe gebouwen, grondstoffen en uiterlijk.', el:'#eraBtn', next:'Verder', pre:() => { if(open){ open=false; render(); } }},
+  {t:'Gebouw-info', p:'Houd je vinger even op een gebouw in je dorp. Dan zie je wat het oplevert en kun je meteen bouwen of upgraden. Gewoon tikken verzamelt grondstoffen.', el:'#map', next:'Verder'},
+  {t:'Opdrachten en je rijk', p:'Elke dag nieuwe opdrachten met edelstenen als beloning. Hier vind je ook wereldwonderen, je legende, je helden, de profetie en het verhaal van de maand.', el:'#questBtn', next:'Verder'},
+  {t:'Verdedig je dorp', p:'Vanaf de IJzertijd komen er rovers. Bouw dan muren, torens en een leger onder Verdedig. Met Verbeter onderzoek je nieuwe technieken.', el:'#tabs [data-arg="d"]', next:'Verder'},
+  {t:'De wereld', p:'Op de wereldkaart zie je andere spelers, barbarenkampen en handelsroutes. Je kunt samen een alliantie vormen.', el:'#worldBtn', next:'Verder'},
+  {t:'Klaar!', p:'Je krijgt 10 edelstenen als welkomstcadeau. Kwijt hoe het werkt? Tik op de ? rechts op de kaart om deze uitleg opnieuw te bekijken.', el:'#tutBtn', next:'Aan de slag!', end:true}];
+function tutStart(){ TUT={i:0}; if(open){ open=false; render(); } tutShow(); }
+function tutStop(skip){ const first=!S.tut; S.tut=1; dirty=true; TUT=null; const el=$('tutBox'); if(el) el.hidden=true; const r=$('tutRing'); if(r) r.hidden=true;
+  if(first && !skip){ S.gems+=10; toast('Welkomstcadeau: 10 edelstenen!',4000); } render(); }
+function tutGo(){ if(!TUT) return; const s=TSTEPS[TUT.i]; if(s.end){ tutStop(false); return; } TUT.i++; const n=TSTEPS[TUT.i]; if(n.pre) n.pre(); TUT.base=n.base?n.base():0; tutShow(); }
+function tutShow(){ if(!TUT) return; const s=TSTEPS[TUT.i]; let box=$('tutBox'), ring=$('tutRing');
+  if(!box){ box=mk('div','tutbox'); box.id='tutBox'; box.setAttribute('role','dialog'); document.body.append(box); ring=mk('div','tutring'); ring.id='tutRing'; document.body.append(ring); }
+  const p=typeof s.p==='function'?s.p():s.p;
+  box.innerHTML=`<p class="tutstep">Uitleg ${TUT.i+1} van ${TSTEPS.length}</p><h3>${s.t}</h3><p>${p}</p><p class="tutprog" id="tutProg"></p><div class="tutbtns">${s.next?`<button class="buy" data-act="tutNext">${s.next}</button>`:''}${s.end?'':'<button class="tutskip" data-act="tutSkip">Uitleg overslaan</button>'}</div>`;
+  box.hidden=false; const el=s.el && document.querySelector(s.el); if(el && el.closest('#list')) try{ el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+  tutPlace(); setTimeout(tutPlace,450); }
+function tutPlace(){ if(!TUT) return; const s=TSTEPS[TUT.i], box=$('tutBox'), ring=$('tutRing'); if(!box) return; const el=s.el && document.querySelector(s.el), vh=window.innerHeight, vw=window.innerWidth;
+  let r=el && el.getBoundingClientRect(); if(r && (!r.width || !r.height || r.bottom<0 || r.top>vh)) r=null;
+  if(r && s.el==='#map'){ r={left:r.left+r.width*.2,top:r.top+r.height*.25,width:r.width*.6,height:r.height*.5}; r.right=r.left+r.width; r.bottom=r.top+r.height; }
+  if(r){ ring.hidden=false; const pad=6; Object.assign(ring.style,{left:(r.left-pad)+'px',top:(r.top-pad)+'px',width:(r.width+pad*2)+'px',height:(r.height+pad*2)+'px'}); } else ring.hidden=true;
+  const bh=box.offsetHeight||160, below=r ? r.bottom+14 : (vh-bh)/2, above=r ? r.top-bh-14 : 0;
+  box.style.top=Math.max(8, Math.min(vh-bh-8, r ? ((r.top+r.height/2)<vh/2 ? below : above) : below))+'px';
+  const pg=$('tutProg'); if(pg) pg.textContent=s.prog?s.prog():''; }
+setInterval(() => { if(typeof S==='undefined' || !S) return;
+  if(!TUT && !S.tut && S.era===0 && buildings(S)<=1 && !(typeof VIEW_S!=='undefined' && VIEW_S) && (typeof STATUS==='undefined' || STATUS==='approved' || STATUS==='local') && !document.querySelector('.report:not([hidden])')) tutStart();
+  if(!TUT) return; const s=TSTEPS[TUT.i]; if(s.done && s.done(TUT)){ tutGo(); return; } tutPlace(); }, 300);
+window.addEventListener('resize',() => tutPlace());
+
 // Online backend: Supabase. Every call goes through a database function that checks the player's secret key.
-const GAME_VERSION='2026-11-23d';
-const NEWS=['Houd je vinger even op een gebouw voor info, bouwen en upgraden. Gewoon tikken verzamelt weer grondstoffen.'];
+const GAME_VERSION='2026-11-28a';
+const NEWS=['Nieuwe spelers krijgen een korte uitleg die stap voor stap de knoppen aanwijst. Ook zin om hem te zien? Tik op de gouden ? rechts op de kaart.'];
 const SB_URL='https://egooyqjznrbappzofbkk.supabase.co', SB_KEY='sb_publishable_LudwyI4DPVVPq8ZzHQn8eg_zMnrVAwz', TKEY='vv-sb-token';
 let ME=null, OWNER=false, netState='wacht', STATUS='', IDEAS=[], PLAYERS=[], CONFIG={}, TOPIC='', lastSave=0, lastSum='', syncing=false, adminT=0, confirmAct='', confirmT=0;
 const clone = o => JSON.parse(JSON.stringify(o));
